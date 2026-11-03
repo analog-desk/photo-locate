@@ -1,0 +1,26 @@
+# Alternative scheduler: runs the full discovery/refresh cycle every 6 hours on GitHub's runners.
+# Use this OR pg_cron (supabase/migrations/0004_cron.sql) — enqueue_refresh_cycle() is idempotent while a cycle runs.
+name: 6-hourly location refresh
+on:
+  schedule:
+    - cron: '7 */6 * * *'
+  workflow_dispatch: {}
+concurrency: { group: location-refresh, cancel-in-progress: false }
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run refresh
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WINDY_WEBCAMS_API_KEY: ${{ secrets.WINDY_WEBCAMS_API_KEY }}
+          FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
+          OPENROUTESERVICE_API_KEY: ${{ secrets.OPENROUTESERVICE_API_KEY }}
+          DATA_CONTACT: ${{ secrets.DATA_CONTACT }}
+          WORKER_BUDGET_MS: '19800000'
