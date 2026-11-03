@@ -10,7 +10,8 @@ const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 export const metadata: Metadata = {
   title: { default: 'Lumen — Photography Location Atlas', template: '%s · Lumen' },
   description: 'Discover the world’s best photography locations, plan around golden & blue hour, weather, sun and moon — with parking, access and viewpoints.',
-  manifest: '/manifest.webmanifest',
+  manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/manifest.webmanifest`,
+  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon.svg` },
   applicationName: 'Lumen',
 };
 

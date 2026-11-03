@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Loader2, LocateFixed, MapPin, Search } from 'lucide-react';
 import type { Place } from './usePlace';
 import { parseCoordinates } from '@/lib/geo';
+import { geocode } from '@/lib/data';
 
 interface GeoHit { name: string; displayName: string; lat: number; lng: number }
 
@@ -22,9 +23,7 @@ export function PlacePicker({ place, onPlace, requestGps, gpsState, compact }: {
     if (q.trim().length < 2) return;
     setBusy(true);
     try {
-      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
-      if (!r.ok) throw new Error((await r.json()).error);
-      const list: GeoHit[] = await r.json();
+      const list: GeoHit[] = await geocode(q, 6);
       setHits(list);
       if (!list.length) setErr('No matching place found.');
     } catch (e: any) { setErr(e.message ?? 'Search failed'); } finally { setBusy(false); }

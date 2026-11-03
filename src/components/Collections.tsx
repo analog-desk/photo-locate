@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/useAuth';
 import { rowToSummary } from '@/lib/repo/mappers';
 import { CardGrid } from './LocationCard';
 import type { LocationSummary } from '@/lib/types';
+import { locHref } from '@/lib/links';
 
 export function Collections() {
   const { sb, user, ready, enabled } = useAuth();
@@ -45,7 +46,7 @@ export function Collections() {
               <label className="flex items-center gap-1 text-xs text-zinc-400"><input type="checkbox" checked={c.is_public} onChange={async (e) => { await sb!.from('collections').update({ is_public: e.target.checked }).eq('id', c.id); refresh(); }} />Public</label>
               <button onClick={async () => { if (confirm(`Delete “${c.title}”?`)) { await sb!.from('collections').delete().eq('id', c.id); refresh(); } }} aria-label="Delete collection"><Trash2 size={14} className="text-zinc-500" /></button>
             </div>
-            <ul className="mt-2 space-y-1 text-sm">{(c.collection_items ?? []).map((i: any) => i.locations && <li key={i.id} className="flex justify-between"><Link href={`/location/${i.locations.slug}`} className="hover:underline">{i.locations.name}</Link>
+            <ul className="mt-2 space-y-1 text-sm">{(c.collection_items ?? []).map((i: any) => i.locations && <li key={i.id} className="flex justify-between"><Link href={locHref(i.locations.slug)} className="hover:underline">{i.locations.name}</Link>
               <button onClick={async () => { await sb!.from('collection_items').delete().eq('id', i.id); refresh(); }} className="text-xs text-zinc-500">remove</button></li>)}</ul>
             {!(c.collection_items ?? []).length && <p className="text-xs text-zinc-500">Add locations from their pages.</p>}
           </div>))}</div>
@@ -60,7 +61,7 @@ export function Collections() {
           <div key={it.id} className="card p-4">
             <div className="flex items-center gap-2"><p className="h-display flex-1 text-lg">{it.title}</p>
               <label className="flex items-center gap-1 text-xs text-zinc-400"><input type="checkbox" checked={it.is_public} onChange={async (e) => { await sb!.from('itineraries').update({ is_public: e.target.checked }).eq('id', it.id); refresh(); }} />Share publicly</label></div>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">{[...(it.itinerary_stops ?? [])].sort((a: any, b: any) => a.position - b.position).map((s: any) => <li key={s.id}><Link className="hover:underline" href={`/location/${s.locations?.slug}`}>{s.locations?.name}</Link>{s.planned_at && <span className="text-zinc-500"> · {new Date(s.planned_at).toLocaleString()}</span>}</li>)}</ol>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">{[...(it.itinerary_stops ?? [])].sort((a: any, b: any) => a.position - b.position).map((s: any) => <li key={s.id}><Link className="hover:underline" href={locHref(s.locations?.slug ?? '')}>{s.locations?.name}</Link>{s.planned_at && <span className="text-zinc-500"> · {new Date(s.planned_at).toLocaleString()}</span>}</li>)}</ol>
             {favs.length > 0 && (
               <select className="input mt-2 py-1 text-xs" defaultValue="" onChange={async (e) => {
                 const id = e.target.value; if (!id) return;

@@ -1,14 +1,16 @@
+'use client';
 import { CardGrid } from '@/components/LocationCard';
 import { Empty, Section } from '@/components/ui';
 import { listByOrder } from '@/lib/repo';
 import { hasSupabase } from '@/lib/config';
+import { useAsync } from '@/lib/useAsync';
 
-export const revalidate = 900;
-export const metadata = { title: 'Trending' };
-
-export default async function Trending() {
-  if (!hasSupabase()) return <Section title="Trending"><Empty title="Trending needs the global index">Trends are computed from popularity history collected by the six-hour refresh (Wikipedia page-view momentum, new licensed photos, community engagement). Connect Supabase to enable it.</Empty></Section>;
-  const [trending, recent, hidden] = await Promise.all([listByOrder('trending', 24), listByOrder('recent', 12), listByOrder('hidden', 12)]);
+export default function Trending() {
+  const db = hasSupabase();
+  const { data, loading } = useAsync(async () => db ? Promise.all([listByOrder('trending', 24), listByOrder('recent', 12), listByOrder('hidden', 12)]) : null, [db]);
+  if (!db) return <Section title="Trending"><Empty title="Trending needs the global index">Trends are computed from popularity history collected by the six-hour refresh (Wikipedia page-view momentum, new licensed photos, community engagement). Connect Supabase to enable it.</Empty></Section>;
+  if (loading || !data) return <Section title="Trending"><p className="text-sm text-zinc-400">Loading…</p></Section>;
+  const [trending, recent, hidden] = data;
   return (
     <>
       <Section title="Gaining popularity" kicker="Momentum vs. the previous 30 days">

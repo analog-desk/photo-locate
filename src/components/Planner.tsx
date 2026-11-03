@@ -14,6 +14,8 @@ import { PlacePicker } from './PlacePicker';
 import { Insights } from './WeatherPanel';
 import { useAuth, ensureLocationId } from '@/lib/useAuth';
 import { Verified } from './ui';
+import { getDetail, getNearby } from '@/lib/data';
+import { locHref, withBase } from '@/lib/links';
 
 export function Planner() {
   const sp = useSearchParams();
@@ -30,8 +32,8 @@ export function Planner() {
   useEffect(() => {
     if (!ref) return;
     setLoc(null); setLoadErr(null);
-    fetch(`/api/locations/${encodeURIComponent(ref)}`).then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); setLoc(j.data); setDate(todayIn(j.data.timezone)); })
-      .catch((e) => setLoadErr(e.message));
+    getDetail(ref).then((j) => { if (!j.data) throw new Error('Location not found'); setLoc(j.data); setDate(todayIn(j.data.timezone)); })
+      .catch((e) => setLoadErr(`Couldn’t load the location: ${e.message}`));
   }, [ref]);
   useEffect(() => {
     if (!sb || !user) return;
@@ -47,7 +49,7 @@ export function Planner() {
     if (!plan || !loc || !plan.window.start) return;
     const start = plan.arrivalAtParking ?? plan.arrivalAtSpot ?? plan.window.start;
     const body = icsEvent({ uid: `${loc.id}-${date}-${target}@lumen`, start, end: plan.window.end ?? plan.window.start, title: `${TARGETS[target]} · ${loc.name}`,
-      description: `Arrive at parking ${t(plan.arrivalAtParking)}, at spot ${t(plan.arrivalAtSpot)}. Window ${t(plan.window.start)}–${t(plan.window.end)}. ${location.origin}/location/${loc.slug}`,
+      description: `Arrive at parking ${t(plan.arrivalAtParking)}, at spot ${t(plan.arrivalAtSpot)}. Window ${t(plan.window.start)}–${t(plan.window.end)}. ${location.origin}${withBase(locHref(loc.slug))}`,
       lat: loc.lat, lng: loc.lng, location: loc.name });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([body], { type: 'text/calendar' }));
@@ -75,7 +77,7 @@ export function Planner() {
       {loc && (
         <div className="card flex flex-wrap items-center gap-3 p-4">
           <MapPin className="text-gold-400" size={18} />
-          <Link href={`/location/${loc.slug}`} className="h-display text-xl hover:underline">{loc.name}</Link>
+          <Link href={locHref(loc.slug)} className="h-display text-xl hover:underline">{loc.name}</Link>
           <button className="chip" onClick={() => { setRef(null); setLoc(null); }}>Change</button>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input ml-auto w-auto" aria-label="Shoot date" />
           <select value={target} onChange={(e) => setTarget(e.target.value as Target)} className="input w-auto" aria-label="What to shoot">
@@ -140,7 +142,7 @@ export function Planner() {
           <ul className="divide-y divide-white/5">{plans.map((p) => (
             <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
               <span className="w-28 font-mono text-zinc-300">{p.plan_date}</span>
-              <Link href={`/location/${p.location_ref}`} className="flex-1 hover:underline">{TARGETS[p.target as Target] ?? p.target} · {p.location_name}</Link>
+              <Link href={locHref(p.location_ref)} className="flex-1 hover:underline">{TARGETS[p.target as Target] ?? p.target} · {p.location_name}</Link>
               <span className="text-xs text-zinc-500">{p.arrival_at ? `arrive ${new Date(p.arrival_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
               <button onClick={async () => { await sb!.from('shoot_plans').delete().eq('id', p.id); setMsg(`Removed ${p.id}`); }} aria-label="Delete plan"><Trash2 size={14} className="text-zinc-500" /></button>
             </li>))}</ul>
@@ -157,7 +159,7 @@ function SpotChooser({ onChoose }: { onChoose: (ref: string) => void }) {
   useEffect(() => {
     if (!place) return;
     setList(null);
-    fetch(`/api/locations/nearby?lat=${place.lat}&lng=${place.lng}&radius=25&limit=24`).then((r) => r.json()).then((j) => setList(j.data ?? []));
+    getNearby({ lat: place.lat, lng: place.lng, radius: 25, limit: 24 }).then((j) => setList(j.data)).catch(() => setList([]));
   }, [place]);
   return (
     <div className="space-y-3">

@@ -76,7 +76,7 @@ const IIPROPS = {
 /** Geotagged, freely licensed photographs within `radiusM` (≤ 10 km) of a point. */
 export async function commonsNearby(lat: number, lng: number, radiusM = 800, limit = 40): Promise<PhotoRef[]> {
   const p = new URLSearchParams({
-    action: 'query', format: 'json', formatversion: '2',
+    action: 'query', format: 'json', formatversion: '2', origin: '*',
     generator: 'geosearch', ggscoord: `${lat}|${lng}`, ggsradius: String(Math.min(radiusM, 10000)),
     ggslimit: String(Math.min(limit, 50)), ggsnamespace: '6', ...IIPROPS,
   });
@@ -92,7 +92,7 @@ export async function commonsFiles(fileNames: string[]): Promise<PhotoRef[]> {
   const out: PhotoRef[] = [];
   for (let i = 0; i < fileNames.length; i += 40) {
     const titles = fileNames.slice(i, i + 40).map((f) => (f.startsWith('File:') ? f : `File:${f}`)).join('|');
-    const p = new URLSearchParams({ action: 'query', format: 'json', formatversion: '2', titles, ...IIPROPS, iiurlwidth: '1200' });
+    const p = new URLSearchParams({ action: 'query', format: 'json', formatversion: '2', origin: '*', titles, ...IIPROPS, iiurlwidth: '1200' });
     const r = await fetchJson<any>(`${API}?${p}`, { provider: 'commons', revalidate: 86400 });
     for (const pg of r.query?.pages ?? []) {
       if (pg.imageinfo?.[0]) {

@@ -135,7 +135,7 @@ begin
 end $$;
 
 /**
- * The 6-hourly cycle. Called by pg_cron (independent of any user session).
+ * The 6-hourly cycle. Called by the GitHub Actions refresh job (independent of any user session).
  * Enqueues every stage of the refresh; workers drain the queue.
  */
 create or replace function public.enqueue_refresh_cycle(

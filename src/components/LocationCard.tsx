@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Gem, MapPin } from 'lucide-react';
 import { CATEGORY_LABELS, type LocationSummary } from '@/lib/types';
 import { formatCoord } from '@/lib/geo';
+import { locHref } from '@/lib/links';
 
 export function PhotoImg({ src, alt, className }: { src?: string | null; alt: string; className?: string }) {
   const [broken, setBroken] = useState(false);
@@ -17,7 +18,7 @@ export function PhotoImg({ src, alt, className }: { src?: string | null; alt: st
 export function LocationCard({ l, highlight }: { l: LocationSummary; highlight?: 'sunrise' | 'sunset' | 'golden' | 'blue' | 'astro' }) {
   const hl = highlight ? l.conditions?.[highlight] : null;
   return (
-    <Link href={`/location/${encodeURIComponent(l.slug)}`} className="group card block overflow-hidden animate-fade-up">
+    <Link href={locHref(l.slug)} className="group card block overflow-hidden animate-fade-up">
       <div className="relative aspect-[4/3] overflow-hidden">
         <PhotoImg src={l.heroImage?.thumbUrl} alt={l.name} className="h-full w-full transition duration-700 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-ink-950/90 via-ink-950/10 to-transparent" />

@@ -6,6 +6,8 @@ import { Loader2, MapPin, ShieldCheck } from 'lucide-react';
 import { useAuth, ensureLocationId } from '@/lib/useAuth';
 import { lightPhaseAt, seasonOf } from '@/lib/astro';
 import { CATEGORIES, CATEGORY_LABELS, type LocationSummary } from '@/lib/types';
+import { getNearby } from '@/lib/data';
+import { photoHref } from '@/lib/links';
 
 const LICENSES = [
   ['all-rights-reserved', 'All rights reserved'], ['cc-by', 'CC BY 4.0'], ['cc-by-sa', 'CC BY-SA 4.0'], ['cc-by-nc', 'CC BY-NC 4.0'],
@@ -70,7 +72,7 @@ export function UploadForm() {
       const phase = e.takenAt && e.lat != null && e.offsetKnown ? lightPhaseAt(new Date(e.takenAt), e.lat, e.lng!) : '';
       setF((s) => ({ ...s, camera: e.camera ?? '', lens: e.lens ?? '', focal: e.focal ? String(e.focal) : '', aperture: e.aperture ? String(e.aperture) : '',
         shutter: e.shutter ?? '', iso: e.iso ? String(e.iso) : '', takenAt: e.takenAt ? e.takenAt.slice(0, 16) : '', phase }));
-      if (e.lat != null) fetch(`/api/locations/nearby?lat=${e.lat}&lng=${e.lng}&radius=5&limit=10&sort=distance`).then((r) => r.json()).then((j) => setSpots(j.data ?? []));
+      if (e.lat != null) getNearby({ lat: e.lat, lng: e.lng!, radius: 5, limit: 10, sort: 'distance' }).then((j) => setSpots(j.data)).catch(() => {});
     });
     return () => URL.revokeObjectURL(url);
   }, [file]);
@@ -101,7 +103,7 @@ export function UploadForm() {
         exif: exif?.raw ?? null, license: f.license,
       }).select('id').single();
       if (error) throw error;
-      router.push(`/community/photo/${data.id}`);
+      router.push(photoHref(data.id));
     } catch (e: any) { setErr(e.message ?? String(e)); } finally { setBusy(false); }
   }
 

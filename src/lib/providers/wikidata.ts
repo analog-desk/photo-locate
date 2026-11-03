@@ -67,6 +67,7 @@ async function run(query: string): Promise<Binding[]> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/sparql-results+json' },
     body: new URLSearchParams({ query }).toString(),
     provider: 'wikidata',
+    revalidate: 3600,
     timeoutMs: 65000,
     retries: 2,
   });

@@ -9,6 +9,8 @@ import { CardGrid } from './LocationCard';
 import { Map, type MapMarker } from './Map';
 import { parseCats, parseSortClient } from './params';
 import type { Category, LocationSummary, SortKey } from '@/lib/types';
+import { findAlongRoute, geocode, getNearby } from '@/lib/data';
+import { locHref } from '@/lib/links';
 
 export function NearMe() {
   const sp = useSearchParams();
@@ -22,18 +24,17 @@ export function NearMe() {
 
   useEffect(() => {
     if (!place || tab !== 'radius') return;
-    const ctrl = new AbortController();
+    let alive = true;
     setState({ loading: true });
-    fetch(`/api/locations/nearby?lat=${place.lat}&lng=${place.lng}&radius=${radius}&cats=${cats.join(',')}&sort=${sort}&limit=80`, { signal: ctrl.signal })
-      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; })
-      .then((j) => { setItems(j.data); setState({ loading: false, note: j.note, mode: j.mode }); })
-      .catch((e) => e.name !== 'AbortError' && setState({ loading: false, err: e.message }));
-    return () => ctrl.abort();
+    getNearby({ lat: place.lat, lng: place.lng, radius, cats, sort, limit: 80 })
+      .then((j) => { if (alive) { setItems(j.data); setState({ loading: false, note: j.note, mode: j.mode }); } })
+      .catch((e) => alive && setState({ loading: false, err: `Location providers unavailable: ${e.message}` }));
+    return () => { alive = false; };
   }, [place, radius, cats, sort, tab]);
 
   const markers: MapMarker[] = useMemo(() => [
     ...(place ? [{ id: 'me', lat: place.lat, lng: place.lng, kind: (place.source === 'gps' ? 'me' : 'pin') as MapMarker['kind'], label: place.label }] : []),
-    ...(items ?? []).map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, kind: 'spot' as const, label: l.name, score: l.photoScore, href: `/location/${l.slug}`, sub: l.categories.slice(0, 3).join(' · ') })),
+    ...(items ?? []).map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, kind: 'spot' as const, label: l.name, score: l.photoScore, href: locHref(l.slug), sub: l.categories.slice(0, 3).join(' · ') })),
   ], [items, place]);
 
   return (
@@ -70,15 +71,14 @@ function AlongRoute({ cats, setCats }: { cats: Category[]; setCats: (c: Category
   const [res, setRes] = useState<{ line: [number, number][]; spots: LocationSummary[]; routed: boolean } | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   async function geo(q: string) {
-    const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`); const j = await r.json();
-    if (!r.ok || !j.length) throw new Error(`Couldn’t find “${q}”`); return { lat: j[0].lat, lng: j[0].lng };
+    const j = await geocode(q, 1);
+    if (!j.length) throw new Error(`Couldn’t find “${q}”`); return { lat: j[0].lat, lng: j[0].lng };
   }
   async function go(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr(null);
     try {
       const pts = [await geo(from), await geo(to)];
-      const r = await fetch('/api/locations/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: pts, bufferKm: buffer, cats: cats.join(',') }) });
-      const j = await r.json(); if (!r.ok) throw new Error(j.error); setRes(j);
+      setRes(await findAlongRoute(pts, buffer, cats));
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   return (
@@ -94,8 +94,8 @@ function AlongRoute({ cats, setCats }: { cats: Category[]; setCats: (c: Category
       {res && (
         <>
           <Map center={res.line[Math.floor(res.line.length / 2)]} zoom={7} routes={[{ coords: res.line, color: '#7593f5', dashed: !res.routed, label: res.routed ? 'Driving route' : 'Straight line (routing not configured)' }]}
-            markers={res.spots.map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, kind: 'spot', label: l.name, score: l.photoScore, href: `/location/${l.slug}` }))} height={420} />
-          {!res.routed && <p className="text-xs text-amber-300">Road routing isn’t configured (OPENROUTESERVICE_API_KEY), so the corridor follows a straight line between your points.</p>}
+            markers={res.spots.map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, kind: 'spot', label: l.name, score: l.photoScore, href: locHref(l.slug) }))} height={420} />
+          {!res.routed && <p className="text-xs text-amber-300">The corridor follows a straight line between your points (road routing would need a private API key, which a static site can’t keep secret). Add more stops for winding routes.</p>}
           <CardGrid items={res.spots} />
         </>
       )}

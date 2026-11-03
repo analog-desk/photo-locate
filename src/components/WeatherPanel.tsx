@@ -6,6 +6,7 @@ import { WMO } from '@/lib/weather/openMeteo';
 import type { DayOutlook, ConditionInsight } from '@/lib/weather/conditions';
 import { formatInTz } from '@/lib/astro';
 import { compassPoint } from '@/lib/geo';
+import { getWeather } from '@/lib/data';
 
 export interface WeatherData { forecast: Forecast; outlooks: DayOutlook[]; attribution: { text: string; url: string } }
 
@@ -18,8 +19,7 @@ export function useWeather(lat: number | null, lng: number | null, cats: string[
     if (lat == null || lng == null) return;
     let alive = true;
     setLoading(true); setErr(null);
-    fetch(`/api/weather?lat=${lat}&lng=${lng}&cats=${key}`)
-      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; })
+    getWeather(lat, lng, key ? key.split(',') : [])
       .then((j) => alive && setData(j))
       .catch((e) => alive && setErr(e.message))
       .finally(() => alive && setLoading(false));

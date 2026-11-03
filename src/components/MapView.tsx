@@ -5,6 +5,8 @@ import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap
 import { Mountain, Ruler, Crosshair, X } from 'lucide-react';
 import { destination, haversineM } from '@/lib/geo';
 import { publicConfig } from '@/lib/config';
+import Link from 'next/link';
+import { getElevation } from '@/lib/data';
 
 export interface MapMarker { id: string; lat: number; lng: number; kind: 'spot' | 'parking' | 'viewpoint' | 'webcam' | 'pin' | 'me'; label: string; href?: string; score?: number; sub?: string }
 export interface MapRay { azimuth: number; color: string; label: string; lengthM?: number; dashed?: boolean }
@@ -67,9 +69,7 @@ export default function MapView({
   async function lookupElevation(p: [number, number]) {
     setElev({ p, v: null });
     try {
-      const r = await fetch(`/api/elevation?lat=${p[0]}&lng=${p[1]}`);
-      const j = await r.json();
-      setElev({ p, v: r.ok ? Math.round(j.elevation) : null, err: r.ok ? undefined : j.error });
+      setElev({ p, v: Math.round(await getElevation(p[0], p[1])) });
     } catch { setElev({ p, v: null, err: 'unavailable' }); }
   }
 
@@ -132,7 +132,7 @@ export default function MapView({
                 <p className="font-medium">{m.label}</p>
                 {m.sub && <p className="text-xs opacity-70">{m.sub}</p>}
                 <p className="font-mono text-[11px] opacity-60">{m.lat.toFixed(5)}, {m.lng.toFixed(5)}</p>
-                {m.href && <a href={m.href} className="mt-1 inline-block text-xs">Open →</a>}
+                {m.href && <Link href={m.href} className="mt-1 inline-block text-xs">Open →</Link>}
               </div>
             </Popup>
           </Marker>

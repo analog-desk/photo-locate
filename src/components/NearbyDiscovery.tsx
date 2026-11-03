@@ -7,6 +7,7 @@ import { PlacePicker } from './PlacePicker';
 import { CardGrid } from './LocationCard';
 import { sortSummaries } from '@/lib/repo/sort';
 import type { LocationSummary } from '@/lib/types';
+import { getNearby } from '@/lib/data';
 
 /** Homepage block: best spots near the user + today's sunrise / sunset / golden / blue picks — all from live forecast scoring. */
 export function NearbyDiscovery() {
@@ -19,8 +20,7 @@ export function NearbyDiscovery() {
   useEffect(() => {
     if (!place) return;
     setItems(null); setErr(null);
-    fetch(`/api/locations/nearby?lat=${place.lat}&lng=${place.lng}&radius=50&limit=40`)
-      .then(async (r) => { const j = await r.json(); if (!r.ok) throw new Error(j.error); return j; })
+    getNearby({ lat: place.lat, lng: place.lng, radius: 50, limit: 40 })
       .then((j) => { setItems(j.data); setNote(j.note ?? null); })
       .catch((e) => setErr(e.message));
   }, [place]);

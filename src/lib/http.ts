@@ -65,14 +65,11 @@ export async function fetchWithRetry(url: string, opts: FetchOpts = {}): Promise
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
       const headers = new Headers(init.headers);
-      if (!headers.has('User-Agent')) headers.set('User-Agent', userAgent());
+      // Browsers send their own User-Agent (and identify the site via Referer); Node jobs identify themselves.
+      if (typeof window === 'undefined' && !headers.has('User-Agent')) headers.set('User-Agent', userAgent());
       if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-      const res = await fetch(url, {
-        ...init,
-        headers,
-        signal: ctrl.signal,
-        ...(revalidate !== undefined ? { next: { revalidate } } : {}),
-      } as RequestInit);
+      void revalidate;
+      const res = await fetch(url, { ...init, headers, signal: ctrl.signal });
       if (res.status === 429 || res.status >= 500) {
         const ra = Number(res.headers.get('retry-after'));
         lastErr = new ProviderError(`${provider ?? host} responded ${res.status}`, res.status, provider);
@@ -95,8 +92,23 @@ export async function fetchWithRetry(url: string, opts: FetchOpts = {}): Promise
   throw lastErr instanceof Error ? lastErr : new ProviderError(`Request to ${host} failed`, undefined, provider);
 }
 
+// In-memory cache for identical requests (keeps the browser polite to free community services).
+const cache = new Map<string, { at: number; data: unknown }>();
+const MAX_CACHE = 300;
+
 export async function fetchJson<T>(url: string, opts: FetchOpts = {}): Promise<T> {
+  const ttl = (opts.revalidate ?? 0) * 1000;
+  const key = ttl ? `${opts.method ?? 'GET'} ${url} ${typeof opts.body === 'string' ? opts.body : ''}` : '';
+  if (key) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.at < ttl) return hit.data as T;
+  }
   const res = await fetchWithRetry(url, opts);
   if (!res.ok) throw new ProviderError(`${opts.provider ?? url} responded ${res.status}`, res.status, opts.provider);
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  if (key) {
+    if (cache.size >= MAX_CACHE) cache.delete(cache.keys().next().value!);
+    cache.set(key, { at: Date.now(), data });
+  }
+  return data;
 }

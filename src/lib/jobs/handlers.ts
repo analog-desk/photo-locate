@@ -80,7 +80,9 @@ async function persistBatch(sb: SupabaseClient, cands: Awaited<ReturnType<typeof
 // ─── 4-12. Refresh one location end-to-end ─────────────────────────────────
 const refreshLocation: Handler = async (sb, job) => {
   const { data: row } = await sb.from('locations').select('*').eq('id', job.payload.locationId).single();
-  if (!row || row.status !== 'active') return { skipped: 'inactive' };
+  // User-requested spots arrive as pending_review and are published only after this validation.
+  const requested = row?.status === 'pending_review' && row.created_by && !row.last_refreshed_at;
+  if (!row || (row.status !== 'active' && !requested)) return { skipped: 'inactive' };
   const changed: string[] = [];
   const diff: Record<string, unknown> = {};
 
@@ -88,6 +90,11 @@ const refreshLocation: Handler = async (sb, job) => {
   let cand = rowToCandidate(row);
   const fresh = row.wikidata_id ? await wikidataById(row.wikidata_id).catch(() => undefined)
     : row.osm_id ? await osmById(row.osm_id).catch(() => undefined) : undefined;
+  if (fresh === undefined && requested) throw new Error('source lookup failed; will retry before publishing a user-requested spot');
+  if (fresh === null && requested) {
+    await sb.from('locations').update({ status: 'rejected' }).eq('id', row.id);
+    return { rejected: 'requested source does not resolve' };
+  }
   if (fresh === null) {
     // Source deleted upstream → lower confidence, flag for review rather than silently deleting.
     const conf = Math.max(0, row.confidence - 0.2);
@@ -97,8 +104,10 @@ const refreshLocation: Handler = async (sb, job) => {
   }
   if (fresh) {
     const moved = haversineM(row, fresh);
-    if (moved > 5 && isValidCoord(fresh.lat, fresh.lng) && moved < 5000) { changed.push('lat', 'lng'); diff.moved_m = Math.round(moved); }
-    cand = { ...cand, lat: moved < 5000 ? fresh.lat : cand.lat, lng: moved < 5000 ? fresh.lng : cand.lng, name: fresh.name || cand.name,
+    // Trust the source for user-requested rows; for established rows ignore implausible jumps (likely upstream vandalism).
+    const accept = isValidCoord(fresh.lat, fresh.lng) && (requested || moved < 5000);
+    if (moved > 5 && accept) { changed.push('lat', 'lng'); diff.moved_m = Math.round(moved); }
+    cand = { ...cand, lat: accept ? fresh.lat : cand.lat, lng: accept ? fresh.lng : cand.lng, name: fresh.name || cand.name,
       osmTags: fresh.osmTags ?? cand.osmTags, commonsImage: fresh.commonsImage ?? cand.commonsImage, sitelinks: fresh.sitelinks ?? cand.sitelinks,
       wikipediaTitle: fresh.wikipediaTitle ?? cand.wikipediaTitle, categories: Array.from(new Set([...cand.categories, ...fresh.categories])) };
   }
@@ -190,6 +199,7 @@ const refreshLocation: Handler = async (sb, job) => {
     trending_ratio: pageviews.length >= 14 || flickrRecent != null ? trending : null,
     confidence: Math.min(1, Math.max(row.confidence, cand.confidence)),
     last_refreshed_at: now, last_photos_at: now, last_parking_at: now,
+    ...(requested ? { status: 'active' } : {}),
     ...(forecast ? { last_weather_at: now } : {}), ...(cams ? { last_webcams_at: now } : {}),
   };
   if (row.name === 'Unnamed viewpoint' && detail.nearestTown) patch.name = `Viewpoint near ${detail.nearestTown}`;

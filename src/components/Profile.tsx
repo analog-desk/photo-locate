@@ -6,6 +6,9 @@ import { useAuth } from '@/lib/useAuth';
 import { communityPhotoRef } from '@/lib/jobs/community';
 import { PhotoImg } from './LocationCard';
 import { Freshness } from './ui';
+import { pipelineStatus } from '@/lib/repo';
+import { locHref, photoHref, userHref, withBase } from '@/lib/links';
+import { hasSupabase } from '@/lib/config';
 
 export function Profile() {
   const { sb, user, ready, enabled } = useAuth();
@@ -40,7 +43,7 @@ export function Profile() {
           {sent ? <p className="text-sm text-emerald-300">Check {email} for your link.</p> : (
             <form className="space-y-2" onSubmit={async (e) => {
               e.preventDefault(); setErr(null);
-              const { error } = await sb!.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}/auth/callback?next=/profile` } });
+              const { error } = await sb!.auth.signInWithOtp({ email, options: { emailRedirectTo: `${location.origin}${withBase('/profile/')}` } });
               if (error) setErr(error.message); else setSent(true);
             }}>
               <input type="email" required className="input" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -65,7 +68,7 @@ export function Profile() {
     <div className="space-y-10">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="section-title flex-1">{profile?.display_name ?? 'Your profile'}</h1>
-        {profile?.username && <Link href={`/profile/${profile.username}`} className="btn-ghost">Public page</Link>}
+        {profile?.username && <Link href={userHref(profile.username)} className="btn-ghost">Public page</Link>}
         <button className="btn-ghost" onClick={() => sb!.auth.signOut()}><LogOut size={15} />Sign out</button>
       </div>
       {profile && (
@@ -82,14 +85,14 @@ export function Profile() {
         <h2 className="section-title mb-3 flex items-center gap-2"><Bell size={20} />Notifications</h2>
         {notes.length ? <ul className="divide-y divide-white/5 card">{notes.map((n) => (
           <li key={n.id} className={`flex items-start gap-3 p-3 text-sm ${n.read_at ? 'opacity-60' : ''}`}>
-            <div className="flex-1"><Link href={n.data?.slug ? `/location/${n.data.slug}` : '#'} className="hover:underline">{n.title}</Link><p className="text-xs text-zinc-500">{n.body} · {new Date(n.created_at).toLocaleString()}</p></div>
+            <div className="flex-1"><Link href={n.data?.slug ? locHref(n.data.slug) : '#'} className="hover:underline">{n.title}</Link><p className="text-xs text-zinc-500">{n.body} · {new Date(n.created_at).toLocaleString()}</p></div>
             {!n.read_at && <button className="chip" onClick={async () => { await sb!.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', n.id); setTick((t) => t + 1); }}>Mark read</button>}
           </li>))}</ul> : <p className="text-sm text-zinc-400">No notifications yet. Turn on sunrise/sunset/astro alerts from any location page.</p>}
       </section>
       <section>
         <h2 className="section-title mb-3">My uploads</h2>
         {mine.length ? <div className="grid grid-cols-3 gap-2 md:grid-cols-6">{mine.map((p) => (
-          <Link key={p.id} href={`/community/photo/${p.id}`} className="relative overflow-hidden rounded-lg"><PhotoImg src={communityPhotoRef(p).thumbUrl} alt="" className="aspect-square w-full" />
+          <Link key={p.id} href={photoHref(p.id)} className="relative overflow-hidden rounded-lg"><PhotoImg src={communityPhotoRef(p).thumbUrl} alt="" className="aspect-square w-full" />
             {p.moderation_status !== 'approved' && <span className="absolute left-1 top-1 rounded bg-ink-950/80 px-1.5 text-[10px] capitalize text-amber-300">{p.moderation_status}</span>}</Link>))}</div>
           : <p className="text-sm text-zinc-400"><Link className="underline" href="/community/upload">Upload</Link> your first photo.</p>}
       </section>
@@ -114,13 +117,13 @@ export function Profile() {
 
 function SystemStatus() {
   const [s, setS] = useState<any>(null);
-  useEffect(() => { fetch('/api/status').then((r) => r.json()).then(setS).catch(() => {}); }, []);
+  useEffect(() => { pipelineStatus().then(setS).catch(() => setS(null)); }, []);
+  if (!hasSupabase()) return <section className="card p-4 text-sm text-zinc-400">Database not connected — the site is running in live mode (Wikidata, OpenStreetMap, Commons and Open-Meteo queried directly).</section>;
   if (!s) return null;
   return (
     <section className="card space-y-3 p-4 text-sm">
       <p className="label flex items-center gap-1"><Activity size={12} />Data pipeline status</p>
-      <div className="flex flex-wrap gap-2 text-xs">{Object.entries(s.integrations).map(([k, v]) => <span key={k} className={`chip ${v ? 'border-emerald-400/40 text-emerald-300' : 'text-zinc-500'}`}>{k}: {v ? 'on' : 'off'}</span>)}</div>
-      {s.counts && <p className="flex items-center gap-1 text-zinc-300"><Database size={13} />{s.counts.locations ?? 0} indexed locations · {s.counts.queuedJobs ?? 0} queued jobs</p>}
+      {s.counts && <p className="flex items-center gap-1 text-zinc-300"><Database size={13} />{s.counts.locations ?? 0} indexed locations · {s.counts.queued_jobs ?? 0} queued jobs · {s.counts.pending_review ?? 0} awaiting validation</p>}
       {s.cycles?.length > 0 ? (
         <ul className="space-y-1 text-xs">{s.cycles.map((c: any) => (
           <li key={c.id} className="flex flex-wrap gap-2"><span className="font-mono text-zinc-400">#{c.id}</span><span className="capitalize">{c.status}</span><Freshness iso={c.started_at} label="started" />

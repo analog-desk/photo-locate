@@ -1,8 +1,8 @@
 /**
- * Standalone 6-hour refresh runner — for GitHub Actions, a VM crontab, Fly/Railway schedulers, etc.
- * Enqueues a cycle and drains the queue completely (no serverless time limit).
- *   npx tsx scripts/run-refresh.ts            # enqueue + drain
- *   npx tsx scripts/run-refresh.ts --drain    # drain only
+ * The six-hour refresh, run by .github/workflows/refresh.yml (or any crontab).
+ * Enqueues a discovery + refresh cycle and drains the whole queue — no server or serverless time limit needed.
+ *   npm run refresh            # enqueue + drain
+ *   npm run refresh -- --drain # drain only
  */
 import { supabaseAdmin } from '../src/lib/supabase/admin';
 import { runWorker, startCycle } from '../src/lib/jobs/worker';
@@ -13,10 +13,11 @@ async function main() {
   if (!sb) throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
   const cfg = serverConfig();
   if (!process.argv.includes('--drain')) {
-    const id = await startCycle(sb, 'script', cfg.regionsPerCycle, cfg.locationsPerCycle);
+    const id = await startCycle(sb, 'github-actions', cfg.regionsPerCycle, cfg.locationsPerCycle);
     console.log(id ? `cycle ${id} enqueued` : 'a cycle is already running — draining its queue');
   }
-  const stats = await runWorker(sb, { budgetMs: Number(process.env.WORKER_BUDGET_MS ?? 5.5 * 3600_000), workerId: `script-${process.pid}`, concurrency: 3 });
+  const stats = await runWorker(sb, { budgetMs: Number(process.env.WORKER_BUDGET_MS ?? 5.5 * 3600_000), workerId: `actions-${process.pid}`, concurrency: 3 });
+  await sb.rpc('housekeeping');
   console.log(JSON.stringify(stats, null, 2));
 }
 

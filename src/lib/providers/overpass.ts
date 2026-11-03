@@ -19,6 +19,7 @@ export async function overpass(query: string, timeoutMs = 70000): Promise<OsmEl[
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ data: query }).toString(),
     provider: 'overpass',
+    revalidate: 1800,
     timeoutMs,
     retries: 2,
   });

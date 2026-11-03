@@ -1,5 +1,5 @@
-# Alternative scheduler: runs the full discovery/refresh cycle every 6 hours on GitHub's runners.
-# Use this OR pg_cron (supabase/migrations/0004_cron.sql) — enqueue_refresh_cycle() is idempotent while a cycle runs.
+# The six-hourly discovery & refresh cycle. Runs on GitHub's servers, independent of whether anyone has the site open.
+# Skips itself (successfully) until the Supabase secrets are added.
 name: 6-hourly location refresh
 on:
   schedule:
@@ -10,17 +10,31 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 340
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # Optional provider keys — kept here (server side), never in the public site.
+      WINDY_WEBCAMS_API_KEY: ${{ secrets.WINDY_WEBCAMS_API_KEY }}
+      FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
+      OPENROUTESERVICE_API_KEY: ${{ secrets.OPENROUTESERVICE_API_KEY }}
+      DATA_CONTACT: ${{ vars.DATA_CONTACT || format('{0} (https://github.com/{1})', github.event.repository.name, github.repository) }}
+      WORKER_BUDGET_MS: '19800000'
     steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::notice::Supabase not configured yet (variable NEXT_PUBLIC_SUPABASE_URL + secret SUPABASE_SERVICE_ROLE_KEY) — skipping refresh."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ready == 'true'
       - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ready == 'true'
         with: { node-version: 22, cache: npm }
       - run: npm ci
+        if: steps.cfg.outputs.ready == 'true'
       - run: npm run refresh
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          WINDY_WEBCAMS_API_KEY: ${{ secrets.WINDY_WEBCAMS_API_KEY }}
-          FLICKR_API_KEY: ${{ secrets.FLICKR_API_KEY }}
-          OPENROUTESERVICE_API_KEY: ${{ secrets.OPENROUTESERVICE_API_KEY }}
-          DATA_CONTACT: ${{ secrets.DATA_CONTACT }}
-          WORKER_BUDGET_MS: '19800000'
+        if: steps.cfg.outputs.ready == 'true'

@@ -1,8 +1,6 @@
-import { notFound } from 'next/navigation';
+'use client';
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import { AlertTriangle, Car, Compass, ExternalLink, Footprints, Mountain, ShieldAlert, Sunrise, Sunset } from 'lucide-react';
-import { detail } from '@/lib/repo';
 import { Freshness, ScoreRing, Verified } from '@/components/ui';
 import { PhotoImg } from '@/components/LocationCard';
 import { PhotoGallery } from '@/components/PhotoGallery';
@@ -15,24 +13,9 @@ import { compassPoint, formatCoord } from '@/lib/geo';
 import { formatInTz, sunDay, todayIn } from '@/lib/astro';
 import { compositionTips } from '@/lib/compositions';
 
-export const revalidate = 1800;
-
-// Provider failures propagate to error.tsx (retryable); only a genuinely unknown id is a 404.
-async function load(id: string) {
-  return (await detail(decodeURIComponent(id))).data;
-}
-
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const l = await load((await params).id).catch(() => null);
-  if (!l) return { title: 'Location' };
-  return { title: l.name, description: l.description?.slice(0, 160) ?? `Photography guide to ${l.name}`, openGraph: l.heroImage ? { images: [l.heroImage.thumbUrl] } : undefined };
-}
-
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
-export default async function LocationPage({ params }: { params: Promise<{ id: string }> }) {
-  const l = await load((await params).id);
-  if (!l) notFound();
+export function LocationView({ l }: { l: LocationDetail }) {
   const sd = sunDay(todayIn(l.timezone), l.lat, l.lng, l.timezone, l.elevation.value ?? 0);
   const b = l.scoreBreakdown;
   return (
@@ -135,7 +118,7 @@ export default async function LocationPage({ params }: { params: Promise<{ id: s
             </div>
           </section>
 
-          <section id="webcams"><h2 className="section-title mb-4">Live webcams nearby</h2><Webcams lat={l.lat} lng={l.lng} /></section>
+          <section id="webcams"><h2 className="section-title mb-4">Live webcams nearby</h2><Webcams locationId={l.id} /></section>
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">

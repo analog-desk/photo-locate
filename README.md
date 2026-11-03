@@ -5,7 +5,9 @@ inspect them on satellite and terrain maps, see where parking is and how far you
 hour, sun and moon positions, the Milky Way, live forecasts and webcams. A background pipeline runs **every six hours**
 to discover new locations and refresh existing ones.
 
-**Stack:** Next.js 15 (App Router) · React 19 · TypeScript · Tailwind · Leaflet · Supabase (Postgres + PostGIS, Auth, Storage, pg_cron) · SunCalc.
+**Stack:** Next.js 15 static export · React 19 · TypeScript · Tailwind · Leaflet · SunCalc · Supabase (Postgres + PostGIS, Auth, Storage) · GitHub Pages + GitHub Actions.
+
+The site is fully static, like the other analog-desk apps. Every push to `main` builds it and publishes it to GitHub Pages. The browser talks directly to the open-data providers and to Supabase (anon key + row-level security), and the six-hour refresh runs in GitHub Actions.
 
 ---
 
@@ -28,75 +30,64 @@ to discover new locations and refresh existing ones.
 src/lib/
   astro.ts            Sun/moon times & positions, golden/blue hour, twilights, sun path, Milky Way core, lunar calendar (time-zone aware)
   weather/            Open-Meteo client + photography condition engine (sunrise/sunset/blue/astro/fog scoring, insights)
-  providers/          wikidata · overpass (OSM POIs, parking, viewpoints, protected areas) · commons · flickr ·
-                      nominatim · webcams (Windy) · routing (ORS) · pageviews (Wikimedia)
-  dedupe.ts           Proximity + name-similarity duplicate detection
-  scoring.ts          0-100 photo-opportunity score with breakdown; separate popularity & scenic scores; hidden-gem rule
-  seasonal.ts         Best months (Milky Way months computed; other categories use labelled heuristics)
-  enrich.ts           Candidate → full LocationDetail from real sources
-  repo/               Database repository (PostGIS RPCs) with a live-provider fallback / top-up
-  jobs/               Queue worker + handlers for the 6-hour pipeline; persistence with validation & dedupe
-src/app/              Pages (Discover, Explore Map, Near Me, Trending, Sun & Moon, Weather, Community, Collections, Planner, Profile, location pages)
-src/app/api/          nearby · search · route corridor · location detail · weather · geocode · webcams · elevation · status · cron · worker
-supabase/migrations/  Schema, RLS + storage, geo/queue functions, pg_cron schedules
+  providers/          wikidata · overpass (OSM POIs, parking, viewpoints, protected areas) · commons · nominatim · pageviews
+                      + server-only (refresh job): flickr · webcams (Windy) · routing (ORS)
+  data.ts             What the pages call: nearby, search, detail, weather, elevation, along-a-route
+  repo/               Supabase/PostGIS reads with a live-provider fallback and top-up
+  dedupe.ts, scoring.ts, seasonal.ts, enrich.ts
+  jobs/               Queue worker + handlers for the six-hour pipeline; validation & dedupe on write
+src/app/              Static pages (location pages use ?id=…, e.g. /location/?id=wd-Q1135473)
+scripts/run-refresh.ts  The six-hour cycle (enqueue + drain), run by GitHub Actions
+supabase/migrations/  Schema, RLS + storage, geo/queue functions, browser-callable functions
+.github/workflows/    deploy.yml (GitHub Pages) · refresh.yml (every 6 h)
 ```
 
 ### The six-hour pipeline
 
-`enqueue_refresh_cycle()` (SQL) is scheduled by **pg_cron at `0 */6 * * *`**, so it runs whether or not anyone has the app open.
-Each cycle enqueues jobs into the `jobs` table:
+`.github/workflows/refresh.yml` runs at `7 */6 * * *` on GitHub's servers, whether or not anyone has the site open.
+It calls `enqueue_refresh_cycle()` and then drains the `jobs` queue:
 
 | Job | What it does |
 | --- | --- |
-| `discover_region` | Scans the next least-recently-scanned tile of a global 5° grid via Wikidata (notable viewpoints, waterfalls, peaks, lakes, castles, lighthouses…). Dense tiles that time out are split into quadrants automatically. |
+| `discover_region` | Scans the next least-recently-scanned tile of a global 5° grid via Wikidata (notable viewpoints, waterfalls, peaks, lakes, castles, lighthouses…). Dense tiles that time out are split into quadrants. |
 | `discover_around` | OSM + Wikidata around **user-demand hotspots** (areas people searched that are thinly covered) and around **trending/top spots** (hidden viewpoints nearby). |
-| `refresh_location` | Re-validates identity and GPS against the source, then refreshes elevation, reverse geocode, description, OSM access tags, parking, viewpoints, protected areas, licensed photos (with new-photo counts), the 7-day forecast and condition scores, 7 days of sun/moon/night calculations, webcams, and popularity history (page-view momentum). It records a diff in `location_updates` and sets `last_refreshed_at`. |
-| `check_webcams` | Marks expired or outdated webcams (no update in 6 h, inactive or removed). |
-| `check_images` | HEAD-checks licensed images; clears dead hero images. |
-| `compute_trending` | Blends provider momentum with in-app engagement (uploads, ratings, saves). |
-| `evaluate_alerts` | Creates notifications for users whose sunrise, sunset or astro alert thresholds are met. |
+| `refresh_location` | Re-validates identity and GPS against the source, then refreshes elevation, place names, description, OSM access tags, parking, viewpoints, protected areas, licensed photos, the 7-day forecast and condition scores, sun/moon/night data, webcams, and popularity history. It records a diff in `location_updates`. |
+| `check_webcams` / `check_images` | Expired or outdated webcam detection, and broken image detection. |
+| `compute_trending` / `evaluate_alerts` | Trending momentum, and notifications for users' condition alerts. |
 
-Every candidate passes through a quality gate: valid coordinates (no Null Island), a sane name, a photographic category, a confidence
-threshold, a stable source id, and not private. Then it goes through **dedupe** (same Wikidata/OSM id, or ≤150 m with name similarity ≥0.72, or ≤40 m with a shared category,
-or ≤600 m with a near-identical name) before an insert or merge. Jobs retry with exponential backoff (2 → 8 → 32 min), then dead-letter.
-Stuck jobs are reclaimed after 15 min. Each provider has a per-host rate limiter, retries that honour `Retry-After`, and a circuit breaker
-(`provider_health`). Cycle status and stats are visible under **Profile → Data pipeline status** and `GET /api/status`.
+Every candidate passes a quality gate (valid coordinates, name, category, confidence, stable source id, not private), then dedupe
+(same Wikidata/OSM id, or ≤150 m with name similarity ≥0.72, or ≤40 m with a shared category, or ≤600 m with a near-identical name).
+Jobs retry with backoff, then dead-letter. Providers are rate-limited and retried, with a circuit breaker.
 
-**Queue draining** is serverless-friendly. pg_cron calls `kick_worker()` every 2 minutes, which POSTs to `/api/jobs/worker`
-(through pg_net) only when jobs are waiting. Each invocation drains jobs for up to ~5 minutes.
+When a signed-in user saves, rates, plans or uploads to a spot that isn't indexed yet, the site calls `request_index()`.
+That inserts the spot as `pending_review` (validated and rate-limited), and the next cycle re-checks it against Wikidata/OSM before publishing it.
 
-**Other schedulers** are included as alternatives. `enqueue_refresh_cycle` won't start a second cycle while one is running.
-* `vercel.json` cron → `GET /api/cron/refresh` (needs Vercel Pro for a 6-hour schedule; Hobby only allows daily runs).
-* `.github/workflows/refresh.yml` runs `npm run refresh`, which enqueues and drains with no time limit.
-* Any crontab can run `npm run refresh`.
+**Keys stay private.** Windy (webcams), Flickr and OpenRouteService keys exist only as GitHub Actions secrets. The refresh job uses them
+and stores the results (webcams, CC photos, routed walking paths) in the database, and the public site only reads those results.
 
 ## Setup
 
-1. **Supabase project.** Enable the `postgis`, `pg_trgm`, `unaccent`, `pg_cron` and `pg_net` extensions (Dashboard → Database → Extensions).
-2. **Migrations.** Run them in order: `supabase db push`, or paste `supabase/migrations/0001…0004` into the SQL editor.
-   `0003` seeds the global discovery grid (1,872 tiles).
-3. **Vault secrets** for the worker kick:
-   ```sql
-   select vault.create_secret('https://YOUR-DOMAIN/api/jobs/worker', 'lumen_worker_url');
-   select vault.create_secret('<CRON_SECRET>', 'lumen_cron_secret');
-   ```
-4. **Environment.** Copy `.env.example` → `.env.local`. Required: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-   `SUPABASE_SERVICE_ROLE_KEY` (server only), `CRON_SECRET`, and `DATA_CONTACT` (a contact string required by OSM and Wikimedia policies).
-   Optional: `WINDY_WEBCAMS_API_KEY` (webcams), `FLICKR_API_KEY` (CC photos and photo-activity signal), `OPENROUTESERVICE_API_KEY`
-   (real walking routes and road routes for "along my route"), and `NEXT_PUBLIC_MAPBOX_TOKEN` (Mapbox satellite and outdoors layers).
-5. **Auth.** Enable email (magic link) and add `https://YOUR-DOMAIN/auth/callback` to the redirect URLs.
-6. **First admin** (for the moderation queue): `update profiles set is_admin = true where id = '<your user id>';`
-7. `npm install && npm run build && npm start`. Deploy to Vercel or any Node host.
-8. Kick off the first cycle with `select enqueue_refresh_cycle('manual');` or `npm run refresh`.
+**Already working:** pushing to `main` publishes the site to `https://analog-desk.github.io/photo-locate/`, provided GitHub Pages is
+set to *Deploy from branch → `gh-pages`* (Settings → Pages), the same as your other apps. Without Supabase the site runs in **live mode**:
+Near Me, Explore, location pages, Sun & Moon, Weather and the Planner all work directly against the open-data providers.
 
-Without Supabase, the app still works in **live mode**. Near Me, Explore, location pages, Sun & Moon, Weather and the Planner query
-Wikidata, OSM, Commons and Open-Meteo directly. Community features, trending and the background refresh need the database.
-With a database, sparsely-indexed areas are topped up live, and that demand is logged so the next cycle indexes the area properly.
+**To enable the database, community and the six-hour refresh:**
+1. Create a Supabase project. Enable the `postgis`, `pg_trgm` and `unaccent` extensions (Database → Extensions).
+2. Run `supabase/migrations/0001…0004` in order in the SQL editor. `0003` seeds the global discovery grid.
+3. In GitHub → Settings → Secrets and variables → Actions:
+   * **Variables:** `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (both public). Optionally add `NEXT_PUBLIC_MAPBOX_TOKEN` and `DATA_CONTACT`.
+   * **Secrets:** `SUPABASE_SERVICE_ROLE_KEY`. Optionally add `WINDY_WEBCAMS_API_KEY`, `FLICKR_API_KEY` and `OPENROUTESERVICE_API_KEY`.
+4. In Supabase → Authentication → URL configuration, set the Site URL and add `https://analog-desk.github.io/photo-locate/profile/` to the redirect URLs.
+5. Re-run the **Deploy** workflow so the site is built with the Supabase variables. Then run **6-hourly location refresh** once from the Actions tab to start indexing.
+6. First admin (for the moderation queue): `update profiles set is_admin = true where id = '<your user id>';`
+
+Until step 3 is done, the refresh workflow simply logs "Supabase not configured" and exits successfully.
 
 ## Commands
 
 ```bash
-npm run dev        # local dev
+npm run dev        # local dev (http://localhost:3000)
+npm run build      # static site → out/
 npm test           # unit tests (astronomy vs almanac values, geo, dedupe, scoring, conditions, quality gate)
 npm run typecheck
 npm run refresh    # run a full discovery/refresh cycle from the command line
@@ -113,7 +104,7 @@ npm run refresh    # run a full discovery/refresh cycle from the command line
 
 ## Privacy and safety
 
-* GPS is requested only after an explicit tap. Manual search and pin drop are always available, and device GPS is never sent to the database.
+* GPS is requested only after an explicit tap. Manual search and pin drop are always available. Device GPS stays in the browser; only a coarse 1° search-demand counter is recorded.
 * Uploads: the photo's coordinates are hidden unless the user makes them public (the `photos_public` view nulls them).
   When coordinates are private, the file is **always re-encoded to strip EXIF/GPS** before upload.
 * New uploads are `pending` until a moderator approves them. Users can't self-approve (database trigger). Content is auto-hidden after 3 reports.
@@ -122,7 +113,9 @@ npm run refresh    # run a full discovery/refresh cycle from the command line
 ## Known limitations and next steps
 
 * Overpass, Wikidata and Nominatim are public community services. At scale, self-host Overpass and Nominatim, or use commercial equivalents.
-* Rate limiting is per process. For many concurrent workers, move it to a shared store such as Redis.
+* Rate limiting runs per browser tab and per refresh job. Popular deployments should point `NEXT_PUBLIC_OVERPASS_URL` / tiles at their own or commercial instances.
+* Route search on the public site follows straight segments between the stops you enter (road routing needs a private key).
+* GitHub pauses scheduled workflows after 60 days without repository activity. Re-enable it from the Actions tab if that happens.
 * Webcam view direction isn't published by Windy, so it shows as "not published". Add another provider to fill this in.
 * Web-push delivery of notifications (they're currently in-app), drag-to-reorder for itinerary stops, and community-suggested viewpoints
   (the table and RLS policy already exist) are natural next additions.
