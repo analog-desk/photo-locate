@@ -1,4 +1,5 @@
 'use client';
+import { fmtElev } from '@/lib/units';
 import { useEffect, useMemo, useState } from 'react';
 import { Moon, Sparkles, Sun, Sunrise, Sunset, Telescope } from 'lucide-react';
 import {
@@ -154,7 +155,7 @@ export function SunMoon({ lat, lng, tz, elevation = 0, viewDir, onRays, initialD
             <W label="Astronomical twilight (pm)" w={sd.astronomicalTwilight.evening} tz={tz} tone="text-violet-300" />
             <div className="flex justify-between py-1.5 text-sm"><span className="text-zinc-400">Daylight</span><span className="font-mono">{daylight}</span></div>
           </div>
-          <p className="mt-2 text-[10px] text-zinc-600">Golden hour = sun −4° to +6°; blue hour = −6° to −4°. Computed with SunCalc for {lat.toFixed(4)}, {lng.toFixed(4)}{elevation ? ` at ${elevation} m` : ''}.</p>
+          <p className="mt-2 text-[10px] text-zinc-600">Golden hour = sun −4° to +6°; blue hour = −6° to −4°. Computed with SunCalc for {lat.toFixed(4)}, {lng.toFixed(4)}{elevation ? ` at ${fmtElev(elevation)}` : ''}.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

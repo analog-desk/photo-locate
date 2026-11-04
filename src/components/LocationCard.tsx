@@ -1,4 +1,5 @@
 'use client';
+import { fmtMiles } from '@/lib/units';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Gem, MapPin } from 'lucide-react';
@@ -34,7 +35,7 @@ export function LocationCard({ l, highlight }: { l: LocationSummary; highlight?:
           <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-300">
             <MapPin size={12} />
             {[l.nearestTown, l.region, l.country].filter(Boolean).slice(0, 2).join(', ') || formatCoord(l.lat, l.lng, 3)}
-            {l.distanceKm != null && <span className="ml-auto text-zinc-200">{l.distanceKm < 10 ? l.distanceKm.toFixed(1) : Math.round(l.distanceKm)} km</span>}
+            {l.distanceKm != null && <span className="ml-auto text-zinc-200">{fmtMiles(l.distanceKm)}</span>}
           </p>
         </div>
       </div>

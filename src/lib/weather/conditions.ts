@@ -1,6 +1,7 @@
 import type { Forecast } from './openMeteo';
 import { hourIndex } from './openMeteo';
 import { astroNight, sunDay } from '../astro';
+import { fmtShort, fmtSpeed } from '../units';
 
 /**
  * Photography condition heuristics derived from forecast data.
@@ -120,7 +121,7 @@ export function dayOutlook(f: Forecast, date: string, lat: number, lng: number, 
   const fog = sr ? fogPotential(sr) : null;
   if (fog != null && fog >= 50) {
     insights.push({ kind: 'fog', level: fog >= 75 ? 'excellent' : 'good', time: sd.sunrise ?? undefined, title: 'Fog potential around sunrise',
-      detail: `Visibility ${sr!.visibilityM != null ? Math.round(sr!.visibilityM) + ' m' : 'n/a'}, dew-point spread ${sr!.dewSpread?.toFixed(1) ?? 'n/a'}°C. Valleys and lakes are most likely to hold mist.` });
+      detail: `Visibility ${sr!.visibilityM != null ? fmtShort(sr!.visibilityM) : 'n/a'}, dew-point spread ${sr!.dewSpread?.toFixed(1) ?? 'n/a'}°C. Valleys and lakes are most likely to hold mist.` });
   }
   let astroScore: number | null = null;
   if (nh && night.darkStart) {
@@ -139,10 +140,10 @@ export function dayOutlook(f: Forecast, date: string, lat: number, lng: number, 
     const gust = f.daily.wind_gusts_10m_max[dayIdx] ?? 0;
     const rainP = f.daily.precipitation_probability_max[dayIdx] ?? 0;
     const snow = f.daily.snowfall_sum[dayIdx] ?? 0;
-    if (gust >= 50) insights.push({ kind: 'wind', level: 'warning', title: 'Strong winds', detail: `Gusts up to ${Math.round(gust)} km/h — tripod stability, drone flight and exposed ridges are affected.` });
-    else if (gust >= 30 && categories.includes('drone')) insights.push({ kind: 'wind', level: 'warning', title: 'Gusty for drones', detail: `Gusts to ${Math.round(gust)} km/h — check your aircraft's wind limits.` });
+    if (gust >= 50) insights.push({ kind: 'wind', level: 'warning', title: 'Strong winds', detail: `Gusts up to ${fmtSpeed(gust)} — tripod stability, drone flight and exposed ridges are affected.` });
+    else if (gust >= 30 && categories.includes('drone')) insights.push({ kind: 'wind', level: 'warning', title: 'Gusty for drones', detail: `Gusts to ${fmtSpeed(gust)} — check your aircraft's wind limits.` });
     if (rainP >= 60) insights.push({ kind: 'rain', level: 'warning', title: 'Rain risk', detail: `Up to ${rainP}% precipitation probability. Protect your gear; waterfalls may flow strongly.` });
-    if (snow > 0.5) insights.push({ kind: 'snow', level: 'good', title: 'Fresh snowfall forecast', detail: `${snow.toFixed(1)} cm expected — beautiful but check road and trail conditions.` });
+    if (snow > 0.5) insights.push({ kind: 'snow', level: 'good', title: 'Fresh snowfall forecast', detail: `${(snow / 2.54).toFixed(1)} in expected — beautiful but check road and trail conditions.` });
   }
   return {
     date,

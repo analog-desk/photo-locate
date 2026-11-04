@@ -1,4 +1,5 @@
 'use client';
+import { fmtElev, fmtShort } from '@/lib/units';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents, ScaleControl, CircleMarker, Circle } from 'react-leaflet';
@@ -117,7 +118,7 @@ export default function MapView({
             <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}" maxZoom={19} attribution="Labels © Esri" />
           </LayersControl.Overlay>
         </LayersControl>
-        <ScaleControl position="bottomleft" />
+        <ScaleControl position="bottomleft" metric={false} />
         <Events mode={mode} onPick={(a, b) => { onPick?.(a, b); setMode('none'); }} onMoveEnd={onMoveEnd} onMeasure={(p) => setMeasure((m) => [...m, p])} onElev={lookupElevation} />
         {radiusKm != null && <Circle center={center} radius={radiusKm * 1000} pathOptions={{ color: '#ffc56b', weight: 1, fillOpacity: 0.03, dashArray: '4 6' }} />}
         {routes.map((r, i) => <Polyline key={i} positions={r.coords} pathOptions={{ color: r.color ?? '#34d399', weight: 4, dashArray: r.dashed ? '6 8' : undefined, opacity: 0.9 }}>{r.label && <Popup>{r.label}</Popup>}</Polyline>)}
@@ -141,8 +142,8 @@ export default function MapView({
         {measure.map((p, i) => <CircleMarker key={i} center={p} radius={4} pathOptions={{ color: '#fbbf24' }} />)}
         {elev && (
           <Popup position={elev.p} eventHandlers={{ remove: () => setElev(null) }}>
-            <span className="text-sm">{elev.err ? `Elevation ${elev.err}` : elev.v == null ? 'Looking up…' : `${elev.v} m above sea level`}</span>
-            <span className="block text-[10px] opacity-60">Copernicus DEM (≈90 m grid)</span>
+            <span className="text-sm">{elev.err ? `Elevation ${elev.err}` : elev.v == null ? 'Looking up…' : `${fmtElev(elev.v)} above sea level`}</span>
+            <span className="block text-[10px] opacity-60">Copernicus DEM (≈300 ft grid)</span>
           </Popup>
         )}
       </MapContainer>
@@ -154,7 +155,7 @@ export default function MapView({
         </div>
         {mode === 'measure' && measure.length > 1 && (
           <span className="pointer-events-auto flex items-center gap-2 rounded-full bg-ink-800/95 px-3 py-1.5 text-xs text-gold-300">
-            {measureM < 1000 ? `${Math.round(measureM)} m` : `${(measureM / 1000).toFixed(2)} km`}
+            {fmtShort(measureM)}
             <button onClick={() => setMeasure([])} aria-label="Clear measurement"><X size={12} /></button>
           </span>
         )}

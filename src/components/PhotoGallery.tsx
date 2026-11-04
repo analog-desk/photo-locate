@@ -32,7 +32,7 @@ export function PhotoGallery({ photos }: { photos: PhotoRef[] }) {
   }), [photos, phase, season, month]);
   const classified = photos.filter((p) => p.lightPhase).length;
 
-  if (!photos.length) return <p className="text-sm text-zinc-400">No licensed photographs are available for this spot yet. Be the first to upload one.</p>;
+  if (!photos.length) return <p className="text-sm text-zinc-400">No freely-licensed photographs are available for this spot yet.</p>;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">

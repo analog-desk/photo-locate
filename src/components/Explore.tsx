@@ -1,4 +1,5 @@
 'use client';
+import { fmtMiles } from '@/lib/units';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
@@ -49,7 +50,7 @@ export function Explore() {
               <Link href={locHref(l.slug)} className="flex gap-3 rounded-xl p-2 hover:bg-white/5">
                 <PhotoImg src={l.heroImage?.thumbUrl} alt={l.name} className="h-14 w-20 shrink-0 rounded-lg" />
                 <div className="min-w-0"><p className="truncate text-sm text-zinc-100">{l.name}</p>
-                  <p className="text-[11px] text-zinc-500">Photo {l.photoScore} · Pop. {l.popularityScore}{l.distanceKm != null && ` · ${l.distanceKm.toFixed(0)} km`}</p>
+                  <p className="text-[11px] text-zinc-500">Photo {l.photoScore} · Pop. {l.popularityScore}{l.distanceKm != null && ` · ${fmtMiles(l.distanceKm)}`}</p>
                   <p className="truncate text-[11px] text-zinc-500">{l.categories.slice(0, 3).join(' · ')}</p></div>
               </Link>
             </li>

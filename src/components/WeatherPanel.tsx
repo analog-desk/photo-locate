@@ -1,4 +1,5 @@
 'use client';
+import { fmtShort, fmtSpeed } from '@/lib/units';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Cloud, CloudFog, Droplets, Eye, Gauge, Loader2, Snowflake, Sparkles, Sun, Sunrise, Sunset, Thermometer, Wind } from 'lucide-react';
 import type { Forecast } from '@/lib/weather/openMeteo';
@@ -97,13 +98,13 @@ export function WeatherPanel({ lat, lng, cats = [], compact }: { lat: number; ln
           </div>
           <div className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-4">
             {stat(Cloud, 'Cloud', `${c.cloud_cover}%`)}
-            {stat(Wind, 'Wind', `${Math.round(c.wind_speed_10m)} km/h ${compassPoint(c.wind_direction_10m)}`)}
-            {stat(Wind, 'Gusts', `${Math.round(c.wind_gusts_10m)} km/h`)}
+            {stat(Wind, 'Wind', `${fmtSpeed(c.wind_speed_10m)} ${compassPoint(c.wind_direction_10m)}`)}
+            {stat(Wind, 'Gusts', fmtSpeed(c.wind_gusts_10m))}
             {stat(Droplets, 'Humidity', `${c.relative_humidity_2m}%`)}
             {stat(Gauge, 'Pressure', `${Math.round(c.pressure_msl)} hPa`)}
-            {stat(Eye, 'Visibility', vis != null ? (vis >= 1000 ? `${(vis / 1000).toFixed(vis < 10000 ? 1 : 0)} km` : `${Math.round(vis)} m`) : 'n/a')}
+            {stat(Eye, 'Visibility', vis != null ? fmtShort(vis) : 'n/a')}
             {stat(Sun, 'UV index', uv != null ? uv.toFixed(1) : 'n/a')}
-            {stat(Snowflake, 'Snow depth', snowDepth != null && snowDepth > 0 ? `${Math.round(snowDepth * 100)} cm` : 'none')}
+            {stat(Snowflake, 'Snow depth', snowDepth != null && snowDepth > 0 ? `${Math.round(snowDepth * 39.37)} in` : 'none')}
           </div>
         </div>
       </div>
@@ -126,7 +127,7 @@ export function WeatherPanel({ lat, lng, cats = [], compact }: { lat: number; ln
                       <td className="p-2 text-zinc-400">{WMO[f.daily.weather_code[i] ?? -1] ?? '—'}</td>
                       <td className="p-2 font-mono">{Math.round(f.daily.temperature_2m_min[i] ?? 0)}° / {Math.round(f.daily.temperature_2m_max[i] ?? 0)}°</td>
                       <td className="p-2 font-mono">{f.daily.precipitation_probability_max[i] ?? 0}% · {(f.daily.precipitation_sum[i] ?? 0).toFixed(1)} mm</td>
-                      <td className="p-2 font-mono">{Math.round(f.daily.wind_speed_10m_max[i] ?? 0)} / {Math.round(f.daily.wind_gusts_10m_max[i] ?? 0)}</td>
+                      <td className="p-2 font-mono">{fmtSpeed(f.daily.wind_speed_10m_max[i] ?? 0)} / {fmtSpeed(f.daily.wind_gusts_10m_max[i] ?? 0)}</td>
                       <td className="p-2">{sc(o?.sunrise.score)}</td><td className="p-2">{sc(o?.sunset.score)}</td><td className="p-2">{sc(o?.astro.score)}</td><td className="p-2">{sc(o?.fogMorning)}</td>
                     </tr>
                   );

@@ -1,4 +1,5 @@
 'use client';
+import { fmtMiles } from '@/lib/units';
 import { useEffect, useState } from 'react';
 import { ExternalLink, Loader2, Maximize2, Video, X } from 'lucide-react';
 import { storedWebcams } from '@/lib/repo';
@@ -21,7 +22,7 @@ export function Webcams({ locationId }: { locationId: string }) {
   if (!hasSupabase()) return <p className="text-sm text-zinc-400">Live webcams are collected by the background refresh and need the database to be connected.</p>;
   if (cams === undefined) return <p className="flex items-center gap-2 text-sm text-zinc-400"><Loader2 size={14} className="animate-spin" /> Looking for webcams…</p>;
   if (cams === null) return <p className="text-sm text-zinc-400">Webcams appear once this spot has been indexed by the six-hour refresh.</p>;
-  if (!cams.length) return <p className="text-sm text-zinc-400">No public webcams recorded within 30 km (requires the Windy key in the refresh job).</p>;
+  if (!cams.length) return <p className="text-sm text-zinc-400">No public webcams recorded within about 20 miles (requires the Windy key in the refresh job).</p>;
   const isStale = (c: Cam) => c.stale || !c.last_updated_on || Date.now() - Date.parse(c.last_updated_on) > 6 * 3600_000;
   return (
     <>
@@ -38,7 +39,7 @@ export function Webcams({ locationId }: { locationId: string }) {
             </div>
             <div className="p-3 text-xs">
               <p className="line-clamp-1 text-sm text-zinc-100">{w.title}</p>
-              <p className="text-zinc-500">{w.distanceKm.toFixed(1)} km away · {w.last_updated_on ? `updated ${new Date(w.last_updated_on).toLocaleString()}` : 'update time unknown'}</p>
+              <p className="text-zinc-500">{fmtMiles(w.distanceKm)} away · {w.last_updated_on ? `updated ${new Date(w.last_updated_on).toLocaleString()}` : 'update time unknown'}</p>
               <p className="text-zinc-500">Direction: {w.direction != null ? `${Math.round(w.direction)}°` : 'not published by provider'}</p>
               {w.page_url && <a href={w.page_url} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-gold-300">Windy.com <ExternalLink size={11} /></a>}
             </div>

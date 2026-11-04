@@ -1,4 +1,5 @@
 'use client';
+import { fmtElev, fmtShort } from '@/lib/units';
 import Link from 'next/link';
 import { AlertTriangle, Car, Compass, ExternalLink, Footprints, Mountain, ShieldAlert, Sunrise, Sunset } from 'lucide-react';
 import { Freshness, ScoreRing, Verified } from '@/components/ui';
@@ -29,7 +30,7 @@ export function LocationView({ l }: { l: LocationDetail }) {
           <div className="flex flex-wrap gap-1.5">{l.categories.map((c) => <Link key={c} href={`/near-me?cats=${c}`} className="chip bg-ink-950/50">{CATEGORY_LABELS[c]}</Link>)}</div>
           <h1 className="h-display mt-3 text-4xl text-white md:text-6xl">{l.name}</h1>
           <p className="mt-2 text-zinc-300">{[l.nearestTown, l.region, l.country].filter(Boolean).join(' · ')}</p>
-          <p className="mt-1 font-mono text-sm text-zinc-400">{formatCoord(l.lat, l.lng, 5)} · <Verified s={l.elevation} render={(v) => `${v} m elevation`} empty="elevation unknown" /></p>
+          <p className="mt-1 font-mono text-sm text-zinc-400">{formatCoord(l.lat, l.lng, 5)} · <Verified s={l.elevation} render={(v) => `${fmtElev(v)} elevation`} empty="elevation unknown" /></p>
           {l.heroImage && <p className="mt-2 text-[10px] text-zinc-500">Photo: {l.heroImage.author} · {l.heroImage.license} · <a href={l.heroImage.sourceUrl} target="_blank" rel="noreferrer" className="underline">source</a></p>}
         </div>
       </header>
@@ -46,8 +47,8 @@ export function LocationView({ l }: { l: LocationDetail }) {
               {l.wikipediaUrl && <a href={l.wikipediaUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs text-zinc-500">Wikipedia (CC BY-SA) <ExternalLink size={11} /></a>}</section>
           )}
 
-          <section id="photos"><h2 className="section-title mb-4">Community & licensed photographs</h2><PhotoGallery photos={l.photos} />
-            <Link href={`/community/upload?loc=${encodeURIComponent(l.slug)}`} className="btn-ghost mt-3">Upload your photo of {l.name}</Link></section>
+          <section id="photos"><h2 className="section-title mb-4">Photographs</h2><PhotoGallery photos={l.photos} />
+</section>
 
           <section id="shooting"><h2 className="section-title mb-4">Where to stand & which way to shoot</h2>
             <div className="grid gap-3 md:grid-cols-2">
@@ -60,8 +61,8 @@ export function LocationView({ l }: { l: LocationDetail }) {
               <div className="card p-4"><p className="label mb-2 flex items-center gap-1"><Compass size={12} />Recorded viewpoints ({l.viewpoints.length})</p>
                 {l.viewpoints.length ? <ul className="space-y-1.5 text-sm">{l.viewpoints.map((v) => (
                   <li key={v.id} className="flex justify-between gap-2"><span>{v.name ?? 'Viewpoint'}{v.direction != null && <span className="text-zinc-500"> · faces {Math.round(v.direction)}° {compassPoint(v.direction)}</span>}</span>
-                    <a className="shrink-0 font-mono text-xs text-zinc-500 hover:text-gold-300" href={v.source.url} target="_blank" rel="noreferrer">{v.lat.toFixed(5)}, {v.lng.toFixed(5)}{v.elevation != null && ` · ${Math.round(v.elevation)} m`}</a></li>))}</ul>
-                  : <p className="text-sm text-zinc-400">No mapped viewpoints within 1.5 km. Community contributions welcome.</p>}
+                    <a className="shrink-0 font-mono text-xs text-zinc-500 hover:text-gold-300" href={v.source.url} target="_blank" rel="noreferrer">{v.lat.toFixed(5)}, {v.lng.toFixed(5)}{v.elevation != null && ` · ${fmtElev(v.elevation)}`}</a></li>))}</ul>
+                  : <p className="text-sm text-zinc-400">No mapped viewpoints within a mile.</p>}
               </div>
               <div className="card p-4"><p className="label mb-2">Lens choices seen in photos here</p>
                 {l.focalHints.length ? <ul className="space-y-1 text-sm">{l.focalHints.map((f) => <li key={f.focal} className="flex justify-between"><span>{f.focal}</span><span className="text-zinc-500">{f.count} photo{f.count > 1 ? 's' : ''}</span></li>)}</ul>
@@ -88,7 +89,7 @@ export function LocationView({ l }: { l: LocationDetail }) {
                     <dt className="text-zinc-500">Fee</dt><dd><Verified s={p.fee} /></dd>
                     <dt className="text-zinc-500">Capacity</dt><dd><Verified s={p.capacity} render={(v) => `${v} spaces`} /></dd>
                     <dt className="text-zinc-500">Access</dt><dd><Verified s={p.access} /></dd>
-                    <dt className="text-zinc-500">Walking distance</dt><dd><Verified s={p.walkingDistanceM} render={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)} km` : `${v} m`)} /></dd>
+                    <dt className="text-zinc-500">Walking distance</dt><dd><Verified s={p.walkingDistanceM} render={(v) => fmtShort(v)} /></dd>
                     <dt className="text-zinc-500">Walking time</dt><dd><Verified s={p.walkingTimeMin} render={(v) => `${v} min`} /></dd>
                   </dl>
                   <div className="mt-2 flex gap-2 text-xs">
@@ -97,7 +98,7 @@ export function LocationView({ l }: { l: LocationDetail }) {
                     <a className="chip" target="_blank" rel="noreferrer" href={p.source.url}>OSM</a>
                   </div>
                 </div>
-              )) : <p className="text-sm text-zinc-400">No public parking is mapped within 1.5 km in OpenStreetMap. Parking information is unverified — check locally and never block access roads.</p>}
+              )) : <p className="text-sm text-zinc-400">No public parking is mapped within a mile in OpenStreetMap. Parking information is unverified — check locally and never block access roads.</p>}
             </div>
             <div className="card mt-4 p-4">
               <dl className="grid gap-y-2 text-sm sm:grid-cols-[180px_1fr]">

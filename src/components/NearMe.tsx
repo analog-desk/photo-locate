@@ -1,4 +1,5 @@
 'use client';
+import { miToKm } from '@/lib/units';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Route as RouteIcon, LocateFixed } from 'lucide-react';
@@ -15,7 +16,7 @@ import { locHref } from '@/lib/links';
 export function NearMe() {
   const sp = useSearchParams();
   const { place, setPlace, requestGps, gpsState } = usePlace();
-  const [radius, setRadius] = useState(Number(sp.get('radius')) || 25);
+  const [radius, setRadius] = useState(Number(sp.get('radius')) || 25); // miles
   const [cats, setCats] = useState<Category[]>(parseCats(sp.get('cats')));
   const [sort, setSort] = useState<SortKey>(parseSortClient(sp.get('sort')));
   const [items, setItems] = useState<LocationSummary[] | null>(null);
@@ -26,7 +27,7 @@ export function NearMe() {
     if (!place || tab !== 'radius') return;
     let alive = true;
     setState({ loading: true });
-    getNearby({ lat: place.lat, lng: place.lng, radius, cats, sort, limit: 80 })
+    getNearby({ lat: place.lat, lng: place.lng, radius: miToKm(radius), cats, sort, limit: 80 })
       .then((j) => { if (alive) { setItems(j.data); setState({ loading: false, note: j.note, mode: j.mode }); } })
       .catch((e) => alive && setState({ loading: false, err: `Location providers unavailable: ${e.message}` }));
     return () => { alive = false; };
@@ -51,10 +52,10 @@ export function NearMe() {
           <PlacePicker place={place} onPlace={setPlace} requestGps={requestGps} gpsState={gpsState} />
           <div className="flex flex-wrap items-center gap-3"><RadiusSelect value={radius} onChange={setRadius} /><SortSelect value={sort} onChange={setSort} /></div>
           <CategoryChips value={cats} onChange={setCats} />
-          <Map center={place ? [place.lat, place.lng] : [30, 0]} zoom={place ? (radius <= 10 ? 12 : radius <= 50 ? 10 : 8) : 2} markers={markers} radiusKm={place ? radius : undefined}
+          <Map center={place ? [place.lat, place.lng] : [30, 0]} zoom={place ? (radius <= 5 ? 12 : radius <= 10 ? 11 : radius <= 25 ? 10 : radius <= 50 ? 9 : 7) : 2} markers={markers} radiusKm={place ? miToKm(radius) : undefined}
             onPick={(lat, lng) => setPlace({ lat, lng, label: 'Dropped pin', source: 'pin' })} height={440} />
           {!place && <p className="text-sm text-zinc-400">Share your location, search for a place, or use <b>Drop pin</b> on the map to begin.</p>}
-          {state.loading && <p className="flex items-center gap-2 text-sm text-zinc-400"><Loader2 className="animate-spin" size={16} /> Searching {radius} km and scoring current conditions…</p>}
+          {state.loading && <p className="flex items-center gap-2 text-sm text-zinc-400"><Loader2 className="animate-spin" size={16} /> Searching {radius} miles and scoring current conditions…</p>}
           {state.err && <p className="text-sm text-rose-300">{state.err}</p>}
           {state.note && <p className="text-xs text-zinc-500">{state.note}</p>}
           {items && !state.loading && (items.length ? <><p className="text-xs text-zinc-500">{items.length} locations · ranked by {sort} · source: {state.mode}</p><CardGrid items={items} highlight={['sunrise', 'sunset', 'golden', 'blue', 'astro'].includes(sort) ? sort as any : undefined} /></>
@@ -67,7 +68,7 @@ export function NearMe() {
 
 function AlongRoute({ cats, setCats }: { cats: Category[]; setCats: (c: Category[]) => void }) {
   const [from, setFrom] = useState(''); const [to, setTo] = useState('');
-  const [buffer, setBuffer] = useState(10);
+  const [buffer, setBuffer] = useState(5); // miles
   const [res, setRes] = useState<{ line: [number, number][]; spots: LocationSummary[]; routed: boolean } | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   async function geo(q: string) {
@@ -78,7 +79,7 @@ function AlongRoute({ cats, setCats }: { cats: Category[]; setCats: (c: Category
     e.preventDefault(); setBusy(true); setErr(null);
     try {
       const pts = [await geo(from), await geo(to)];
-      setRes(await findAlongRoute(pts, buffer, cats));
+      setRes(await findAlongRoute(pts, miToKm(buffer), cats));
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   return (
@@ -86,7 +87,7 @@ function AlongRoute({ cats, setCats }: { cats: Category[]; setCats: (c: Category
       <form onSubmit={go} className="card grid gap-2 p-4 md:grid-cols-[1fr_1fr_auto_auto]">
         <input className="input" value={from} onChange={(e) => setFrom(e.target.value)} placeholder="Start (e.g. Reykjavík)" required />
         <input className="input" value={to} onChange={(e) => setTo(e.target.value)} placeholder="Destination (e.g. Vík)" required />
-        <select className="input" value={buffer} onChange={(e) => setBuffer(+e.target.value)} aria-label="Detour distance">{[5, 10, 25, 50].map((b) => <option key={b} value={b}>within {b} km</option>)}</select>
+        <select className="input" value={buffer} onChange={(e) => setBuffer(+e.target.value)} aria-label="Detour distance">{[3, 5, 15, 30].map((b) => <option key={b} value={b}>within {b} miles</option>)}</select>
         <button className="btn-primary" disabled={busy}>{busy ? <Loader2 className="animate-spin" size={16} /> : 'Find spots'}</button>
       </form>
       <CategoryChips value={cats} onChange={setCats} />

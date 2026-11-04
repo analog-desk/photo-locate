@@ -167,7 +167,7 @@ export async function enrichCandidate(c: Candidate, opts: { communityPhotos?: Ph
       surface: t.surface ?? null,
       distanceToSpotM: Math.round(p.d),
       walkingDistanceM: r ? { value: Math.round(r.distanceM), verified: true, source: 'OpenRouteService (foot-hiking)' } : { value: Math.round(p.d * 1.3), verified: false, source: 'Estimate: straight line × 1.3' },
-      walkingTimeMin: r ? { value: r.durationMin, verified: true, source: 'OpenRouteService (foot-hiking)' } : { value: estimateWalkMinutes(p.d), verified: false, source: 'Estimate at 4.5 km/h' },
+      walkingTimeMin: r ? { value: r.durationMin, verified: true, source: 'OpenRouteService (foot-hiking)' } : { value: estimateWalkMinutes(p.d), verified: false, source: 'Estimate at 2.8 mph' },
       route: r?.coords ?? null,
       source: { provider: 'osm', id: p.osmId, url: `https://www.openstreetmap.org/${p.osmId}` },
     };

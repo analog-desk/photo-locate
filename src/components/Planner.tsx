@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, CalendarPlus, Car, Download, Loader2, MapPin, Trash2 } from 'lucide-react';
+import { CalendarPlus, Car, Download, Loader2, MapPin, Trash2 } from 'lucide-react';
 import type { LocationDetail, LocationSummary } from '@/lib/types';
 import { buildPlan, TARGETS, type Target } from '@/lib/plan';
 import { formatInTz, todayIn } from '@/lib/astro';
@@ -12,7 +12,8 @@ import { useWeather } from './WeatherPanel';
 import { usePlace } from './usePlace';
 import { PlacePicker } from './PlacePicker';
 import { Insights } from './WeatherPanel';
-import { useAuth, ensureLocationId } from '@/lib/useAuth';
+import { KEYS, newId, useLocal, type SavedPlan } from '@/lib/localStore';
+import { fmtMiles, fmtShort, fmtSpeed, miToKm } from '@/lib/units';
 import { Verified } from './ui';
 import { getDetail, getNearby } from '@/lib/data';
 import { locHref, withBase } from '@/lib/links';
@@ -25,9 +26,8 @@ export function Planner() {
   const [date, setDate] = useState<string>('');
   const [target, setTarget] = useState<Target>('sunset');
   const { data: wx } = useWeather(loc?.lat ?? null, loc?.lng ?? null, loc?.categories ?? []);
-  const { sb, user } = useAuth();
   const [msg, setMsg] = useState<string | null>(null);
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useLocal<SavedPlan[]>(KEYS.plans, []);
 
   useEffect(() => {
     if (!ref) return;
@@ -35,10 +35,6 @@ export function Planner() {
     getDetail(ref).then((j) => { if (!j.data) throw new Error('Location not found'); setLoc(j.data); setDate(todayIn(j.data.timezone)); })
       .catch((e) => setLoadErr(`Couldn’t load the location: ${e.message}`));
   }, [ref]);
-  useEffect(() => {
-    if (!sb || !user) return;
-    sb.from('shoot_plans').select('*').eq('user_id', user.id).gte('plan_date', new Date(Date.now() - 86400000).toISOString().slice(0, 10)).order('plan_date').then(({ data }) => setPlans(data ?? []));
-  }, [sb, user, msg]);
 
   const outlook = wx?.outlooks.find((o) => o.date === date) ?? null;
   const plan = useMemo(() => (loc && date ? buildPlan(loc, date, target, wx?.forecast ?? null, outlook) : null), [loc, date, target, wx, outlook]);
@@ -55,17 +51,11 @@ export function Planner() {
     a.href = URL.createObjectURL(new Blob([body], { type: 'text/calendar' }));
     a.download = `${loc.slug}-${date}.ics`; a.click();
   }
-  async function save() {
+  function save() {
     if (!plan || !loc) return;
-    if (!sb || !user) { setMsg('Sign in on the Profile page to save plans to your photography calendar.'); return; }
-    try {
-      const locationId = await ensureLocationId(loc.id).catch(() => null);
-      const { error } = await sb.from('shoot_plans').insert({ user_id: user.id, location_id: locationId, location_ref: loc.slug, location_name: loc.name, lat: loc.lat, lng: loc.lng,
-        plan_date: date, target, arrival_at: plan.arrivalAtParking ?? plan.arrivalAtSpot, plan });
-      if (error) throw error;
-      if (locationId && ['sunrise', 'sunset', 'astro'].includes(target)) await sb.from('alert_rules').upsert({ user_id: user.id, location_id: locationId, kind: target, min_score: 65 }, { onConflict: 'user_id,location_id,kind' });
-      setMsg('Saved to your photography calendar. You’ll get a notification if forecast conditions look promising.');
-    } catch (e: any) { setMsg(e.message); }
+    setPlans((all) => [...all, { id: newId(), createdAt: new Date().toISOString(), ref: loc.slug, name: loc.name, lat: loc.lat, lng: loc.lng,
+      date, target, arrivalAt: plan.arrivalAtParking ?? plan.arrivalAtSpot, windowStart: plan.window.start, windowEnd: plan.window.end }]);
+    setMsg('Saved to your photography calendar on this device. Download the .ics to add it to your phone’s calendar with a reminder.');
   }
 
   return (
@@ -112,7 +102,7 @@ export function Planner() {
                 <>
                   {plan.weather.score != null && <p className="mb-1">Photo potential <b className="text-gold-300">{plan.weather.score}/100</b></p>}
                   <p>Cloud {plan.weather.cloud!.total}% (low {plan.weather.cloud!.low} · mid {plan.weather.cloud!.mid} · high {plan.weather.cloud!.high})</p>
-                  <p>Wind {Math.round(plan.weather.wind!)} km/h, gusts {Math.round(plan.weather.gust!)} · rain {plan.weather.precipProb}%</p>
+                  <p>Wind {fmtSpeed(plan.weather.wind!)}, gusts {fmtSpeed(plan.weather.gust!)} · rain {plan.weather.precipProb}%</p>
                   <p className="mt-1 text-[10px] text-zinc-500">Open-Meteo forecast; potential, not a guarantee.</p>
                 </>
               ) : <p className="text-zinc-400">Forecast not available for this date yet (7-day horizon). Re-check closer to the day.</p>}
@@ -127,7 +117,7 @@ export function Planner() {
               <div className="card p-4 text-sm"><p className="label mb-2">Parking</p>
                 <p>{loc.parking[0].name ?? 'Parking area'} · <span className="font-mono text-xs">{loc.parking[0].lat.toFixed(5)}, {loc.parking[0].lng.toFixed(5)}</span></p>
                 <p className="text-xs">Fee: <Verified s={loc.parking[0].fee} /></p>
-                <p className="text-xs">Walk: <Verified s={loc.parking[0].walkingDistanceM} render={(v) => `${v} m`} /></p></div>
+                <p className="text-xs">Walk: <Verified s={loc.parking[0].walkingDistanceM} render={(v) => fmtShort(v)} /></p></div>
             )}
             <div className="card p-4 text-sm"><p className="label mb-2">Viewpoints & subjects</p>
               {loc.viewpoints.slice(0, 4).map((v) => <p key={v.id} className="text-zinc-300">{v.name ?? 'Viewpoint'}{v.direction != null && ` · faces ${compassPoint(v.direction)}`}</p>)}
@@ -139,14 +129,14 @@ export function Planner() {
       {plans.length > 0 && (
         <div className="card p-4">
           <p className="label mb-3">My photography calendar</p>
-          <ul className="divide-y divide-white/5">{plans.map((p) => (
+          <ul className="divide-y divide-white/5">{[...plans].sort((a, b) => a.date.localeCompare(b.date)).map((p) => (
             <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
-              <span className="w-28 font-mono text-zinc-300">{p.plan_date}</span>
-              <Link href={locHref(p.location_ref)} className="flex-1 hover:underline">{TARGETS[p.target as Target] ?? p.target} · {p.location_name}</Link>
-              <span className="text-xs text-zinc-500">{p.arrival_at ? `arrive ${new Date(p.arrival_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-              <button onClick={async () => { await sb!.from('shoot_plans').delete().eq('id', p.id); setMsg(`Removed ${p.id}`); }} aria-label="Delete plan"><Trash2 size={14} className="text-zinc-500" /></button>
+              <span className="w-28 font-mono text-zinc-300">{p.date}</span>
+              <Link href={locHref(p.ref)} className="flex-1 hover:underline">{TARGETS[p.target as Target] ?? p.target} · {p.name}</Link>
+              <span className="text-xs text-zinc-500">{p.arrivalAt ? `arrive ${new Date(p.arrivalAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+              <button onClick={() => setPlans((all) => all.filter((x) => x.id !== p.id))} aria-label="Delete plan"><Trash2 size={14} className="text-zinc-500" /></button>
             </li>))}</ul>
-          <p className="mt-2 flex items-center gap-1 text-[11px] text-zinc-500"><Bell size={11} />Alerts are evaluated after every six-hour refresh and appear under Profile → Notifications.</p>
+          <p className="mt-2 text-[11px] text-zinc-500">Saved on this device. Also listed under My Collections.</p>
         </div>
       )}
     </div>
@@ -159,7 +149,7 @@ function SpotChooser({ onChoose }: { onChoose: (ref: string) => void }) {
   useEffect(() => {
     if (!place) return;
     setList(null);
-    getNearby({ lat: place.lat, lng: place.lng, radius: 25, limit: 24 }).then((j) => setList(j.data)).catch(() => setList([]));
+    getNearby({ lat: place.lat, lng: place.lng, radius: miToKm(15), limit: 24 }).then((j) => setList(j.data)).catch(() => setList([]));
   }, [place]);
   return (
     <div className="space-y-3">
@@ -167,7 +157,7 @@ function SpotChooser({ onChoose }: { onChoose: (ref: string) => void }) {
       {place && !list && <p className="flex items-center gap-2 text-sm text-zinc-400"><Loader2 size={14} className="animate-spin" />Finding spots…</p>}
       {list && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{list.map((l) => (
         <button key={l.id} onClick={() => onChoose(l.slug)} className="card flex items-center justify-between gap-2 p-3 text-left hover:bg-white/5">
-          <span className="min-w-0"><span className="block truncate text-sm">{l.name}</span><span className="text-xs text-zinc-500">{l.distanceKm?.toFixed(1)} km · {l.categories.slice(0, 2).join(', ')}</span></span>
+          <span className="min-w-0"><span className="block truncate text-sm">{l.name}</span><span className="text-xs text-zinc-500">{l.distanceKm != null ? fmtMiles(l.distanceKm) : ''} · {l.categories.slice(0, 2).join(', ')}</span></span>
           <span className="text-sm font-semibold text-gold-300">{l.photoScore}</span>
         </button>))}</div>}
     </div>

@@ -1,4 +1,5 @@
 'use client';
+import { fmtShort } from '@/lib/units';
 import { useCallback, useState } from 'react';
 import { Map, type MapMarker, type MapRay, type MapRoute } from './Map';
 import { SunMoon } from './SunMoon';
@@ -24,7 +25,7 @@ export function LocationSunMap({ l }: { l: LocationDetail }) {
 export function ParkingMap({ l }: { l: LocationDetail }) {
   const markers: MapMarker[] = [
     { id: l.id, lat: l.lat, lng: l.lng, kind: 'spot', label: l.name, score: l.photoScore },
-    ...l.parking.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, kind: 'parking' as const, label: p.name ?? 'Parking', sub: `${p.distanceToSpotM} m straight-line to spot` })),
+    ...l.parking.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng, kind: 'parking' as const, label: p.name ?? 'Parking', sub: `${fmtShort(p.distanceToSpotM)} straight-line to spot` })),
     ...l.viewpoints.map((v) => ({ id: v.id, lat: v.lat, lng: v.lng, kind: 'viewpoint' as const, label: v.name ?? 'Viewpoint' })),
   ];
   const routes: MapRoute[] = l.parking.map((p) => p.route

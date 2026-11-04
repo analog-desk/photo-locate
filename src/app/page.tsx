@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { Map, Search } from 'lucide-react';
 import { Section } from '@/components/ui';
 import { NearbyDiscovery } from '@/components/NearbyDiscovery';
-import { HomeLists } from '@/components/HomeLists';
 import { CATEGORIES, CATEGORY_LABELS } from '@/lib/types';
 import { withBase } from '@/lib/links';
 
@@ -17,7 +16,7 @@ export default function Home() {
         <div className="mx-auto flex min-h-[62vh] max-w-7xl flex-col justify-end px-4 pb-12 pt-24">
           <p className="label text-gold-300">Worldwide photography atlas</p>
           <h1 className="h-display mt-2 max-w-3xl text-4xl leading-[1.05] text-white md:text-6xl">Know where to stand, when to arrive, and what the light will do.</h1>
-          <p className="mt-4 max-w-2xl text-zinc-300">Locations from open geographic data, licensed community photography, golden & blue hour, sun and moon positions, live forecasts, parking and access — continuously refreshed every six hours.</p>
+          <p className="mt-4 max-w-2xl text-zinc-300">Locations from open geographic data, freely-licensed photography, golden & blue hour, sun and moon positions, live forecasts, parking and access.</p>
           <form action={withBase('/search/')} className="mt-6 flex max-w-2xl gap-2">
             <div className="relative flex-1">
               <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -36,7 +35,6 @@ export default function Home() {
         <NearbyDiscovery />
       </Section>
 
-      <HomeLists />
     </>
   );
 }

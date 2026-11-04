@@ -14,7 +14,7 @@ The site is fully static, like the other analog-desk apps. Every push to `main` 
 ## Data principles
 
 * **Nothing invented.** All locations come from Wikidata (CC0) and OpenStreetMap (ODbL). Photos come from Wikimedia Commons
-  (freely-licensed only), Flickr (Creative Commons / public domain only, optional) or user uploads. Weather comes from Open-Meteo, and webcams
+  (freely-licensed only) and Flickr (Creative Commons / public domain only, optional). Weather comes from Open-Meteo, and webcams
   from the Windy Webcams API.
 * Every access and parking field is a `Sourced<T>` value: `{ value, verified, source }`. If a fee, opening hours, capacity or difficulty
   isn't tagged in OSM, the UI shows **Unverified** instead of a guess. Walking distance and time are marked as *estimates*
@@ -53,14 +53,12 @@ It calls `enqueue_refresh_cycle()` and then drains the `jobs` queue:
 | `discover_around` | OSM + Wikidata around **user-demand hotspots** (areas people searched that are thinly covered) and around **trending/top spots** (hidden viewpoints nearby). |
 | `refresh_location` | Re-validates identity and GPS against the source, then refreshes elevation, place names, description, OSM access tags, parking, viewpoints, protected areas, licensed photos, the 7-day forecast and condition scores, sun/moon/night data, webcams, and popularity history. It records a diff in `location_updates`. |
 | `check_webcams` / `check_images` | Expired or outdated webcam detection, and broken image detection. |
-| `compute_trending` / `evaluate_alerts` | Trending momentum, and notifications for users' condition alerts. |
+| `compute_trending` | Popularity momentum, used to prioritise what gets refreshed and explored next. |
 
 Every candidate passes a quality gate (valid coordinates, name, category, confidence, stable source id, not private), then dedupe
 (same Wikidata/OSM id, or ≤150 m with name similarity ≥0.72, or ≤40 m with a shared category, or ≤600 m with a near-identical name).
 Jobs retry with backoff, then dead-letter. Providers are rate-limited and retried, with a circuit breaker.
 
-When a signed-in user saves, rates, plans or uploads to a spot that isn't indexed yet, the site calls `request_index()`.
-That inserts the spot as `pending_review` (validated and rate-limited), and the next cycle re-checks it against Wikidata/OSM before publishing it.
 
 **Keys stay private.** Windy (webcams), Flickr and OpenRouteService keys exist only as GitHub Actions secrets. The refresh job uses them
 and stores the results (webcams, CC photos, routed walking paths) in the database, and the public site only reads those results.
@@ -71,15 +69,13 @@ and stores the results (webcams, CC photos, routed walking paths) in the databas
 set to *Deploy from branch → `gh-pages`* (Settings → Pages), the same as your other apps. Without Supabase the site runs in **live mode**:
 Near Me, Explore, location pages, Sun & Moon, Weather and the Planner all work directly against the open-data providers.
 
-**To enable the database, community and the six-hour refresh:**
+**To enable the database and the six-hour refresh** (more spots indexed ahead of time, stored webcams, routed walking paths):
 1. Create a Supabase project. Enable the `postgis`, `pg_trgm` and `unaccent` extensions (Database → Extensions).
 2. Run `supabase/migrations/0001…0004` in order in the SQL editor. `0003` seeds the global discovery grid.
 3. In GitHub → Settings → Secrets and variables → Actions:
    * **Variables:** `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (both public). Optionally add `NEXT_PUBLIC_MAPBOX_TOKEN` and `DATA_CONTACT`.
    * **Secrets:** `SUPABASE_SERVICE_ROLE_KEY`. Optionally add `WINDY_WEBCAMS_API_KEY`, `FLICKR_API_KEY` and `OPENROUTESERVICE_API_KEY`.
-4. In Supabase → Authentication → URL configuration, set the Site URL and add `https://analog-desk.github.io/photo-locate/profile/` to the redirect URLs.
-5. Re-run the **Deploy** workflow so the site is built with the Supabase variables. Then run **6-hourly location refresh** once from the Actions tab to start indexing.
-6. First admin (for the moderation queue): `update profiles set is_admin = true where id = '<your user id>';`
+4. Re-run the **Deploy** workflow so the site is built with the Supabase variables. Then run **6-hourly location refresh** once from the Actions tab to start indexing.
 
 Until step 3 is done, the refresh workflow simply logs "Supabase not configured" and exits successfully.
 
@@ -100,14 +96,11 @@ npm run refresh    # run a full discovery/refresh cycle from the command line
 * **Esri imagery and topo.** Esri World Imagery and World Topo basemaps require an ArcGIS account under Esri's terms for production apps. Use Mapbox if that doesn't fit your plan.
 * **Required attributions** are shown in the map and footer: OSM (ODbL), Open-Meteo (CC BY 4.0), Wikipedia text (CC BY-SA), Copernicus DEM,
   Waymarked Trails (CC BY-SA), Windy.
-* **Photos** always show the author, the license and a link back to the source. User uploads carry an explicit license choice and a rights declaration.
+* **Photos** always show the author, the license and a link back to the source.
 
 ## Privacy and safety
 
 * GPS is requested only after an explicit tap. Manual search and pin drop are always available. Device GPS stays in the browser; only a coarse 1° search-demand counter is recorded.
-* Uploads: the photo's coordinates are hidden unless the user makes them public (the `photos_public` view nulls them).
-  When coordinates are private, the file is **always re-encoded to strip EXIF/GPS** before upload.
-* New uploads are `pending` until a moderator approves them. Users can't self-approve (database trigger). Content is auto-hidden after 3 reports.
 * Private-property, protected-area, drone and hazard notices appear on location pages. Unsafe or abandoned sites carry explicit warnings.
 
 ## Known limitations and next steps
@@ -117,5 +110,9 @@ npm run refresh    # run a full discovery/refresh cycle from the command line
 * Route search on the public site follows straight segments between the stops you enter (road routing needs a private key).
 * GitHub pauses scheduled workflows after 60 days without repository activity. Re-enable it from the Actions tab if that happens.
 * Webcam view direction isn't published by Windy, so it shows as "not published". Add another provider to fill this in.
-* Web-push delivery of notifications (they're currently in-app), drag-to-reorder for itinerary stops, and community-suggested viewpoints
-  (the table and RLS policy already exist) are natural next additions.
+
+## No accounts
+
+There is no sign-in. Favourites, collections, itineraries and saved shoot plans are stored **on the device** (browser local storage).
+My Collections has *Export backup* / *Import backup* to move them between devices. Distances are shown in miles and feet, wind in mph,
+and elevation in feet. Temperatures and rainfall are still °C and mm.

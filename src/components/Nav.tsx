@@ -2,21 +2,18 @@
 import Link from 'next/link';
 import { Logo } from './Logo';
 import { usePathname } from 'next/navigation';
-import { CalendarClock, CloudSun, Compass, FolderHeart, LocateFixed, Map, SunMoon, TrendingUp, User, Users } from 'lucide-react';
+import { CalendarClock, CloudSun, Compass, FolderHeart, LocateFixed, Map, SunMoon } from 'lucide-react';
 
 export const NAV = [
   { href: '/', label: 'Discover', icon: Compass },
   { href: '/explore', label: 'Explore Map', icon: Map },
   { href: '/near-me', label: 'Near Me', icon: LocateFixed },
-  { href: '/trending', label: 'Trending', icon: TrendingUp },
   { href: '/sun-moon', label: 'Sun & Moon', icon: SunMoon },
   { href: '/weather', label: 'Weather', icon: CloudSun },
-  { href: '/community', label: 'Community', icon: Users },
   { href: '/collections', label: 'My Collections', icon: FolderHeart },
   { href: '/planner', label: 'Planner', icon: CalendarClock },
-  { href: '/profile', label: 'Profile', icon: User },
 ];
-const MOBILE = ['/', '/explore', '/near-me', '/planner', '/profile'];
+const MOBILE = ['/', '/explore', '/near-me', '/sun-moon', '/planner'];
 
 export function Nav() {
   const path = usePathname();
