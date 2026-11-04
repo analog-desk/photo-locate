@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   title: { default: 'Varo’s Eye — Photography Location Atlas', template: '%s · Varo’s Eye' },
   description: 'Discover the world’s best photography locations, plan around golden & blue hour, weather, sun and moon — with parking, access and viewpoints.',
   manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/manifest.webmanifest`,
-  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon.svg` },
+  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon.svg`, apple: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/apple-touch-icon.png` },
   applicationName: 'Varo’s Eye',
 };
 

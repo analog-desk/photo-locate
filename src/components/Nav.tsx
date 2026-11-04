@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { Logo } from './Logo';
 import { usePathname } from 'next/navigation';
 import { CalendarClock, CloudSun, Compass, FolderHeart, LocateFixed, Map, SunMoon, TrendingUp, User, Users } from 'lucide-react';
 
@@ -25,7 +26,7 @@ export function Nav() {
       <header className="sticky top-0 z-[1000] border-b border-white/5 bg-ink-950/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-gold-400 to-dusk-500 text-[13px] font-bold text-ink-950">V</span>
+            <Logo size={30} />
             <span className="h-display text-lg">Varo’s Eye</span>
           </Link>
           <nav className="hidden flex-1 items-center gap-1 overflow-x-auto lg:flex">
