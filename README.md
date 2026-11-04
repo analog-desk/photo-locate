@@ -1,4 +1,4 @@
-# Lumen — Worldwide Photography Location Atlas
+# Varo’s Eye — Worldwide Photography Location Atlas
 
 A photography discovery and planning platform. It helps you find great places to shoot worldwide and nearby,
 inspect them on satellite and terrain maps, see where parking is and how far you'll walk, and plan around golden and blue

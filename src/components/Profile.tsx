@@ -38,7 +38,7 @@ export function Profile() {
     return (
       <div className="mx-auto max-w-md space-y-6">
         <div className="card space-y-3 p-6">
-          <h1 className="h-display text-2xl">Sign in to Lumen</h1>
+          <h1 className="h-display text-2xl">Sign in to Varo’s Eye</h1>
           <p className="text-sm text-zinc-400">We’ll email you a secure sign-in link. No password needed.</p>
           {sent ? <p className="text-sm text-emerald-300">Check {email} for your link.</p> : (
             <form className="space-y-2" onSubmit={async (e) => {

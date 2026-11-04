@@ -48,7 +48,7 @@ export function Planner() {
   function ics() {
     if (!plan || !loc || !plan.window.start) return;
     const start = plan.arrivalAtParking ?? plan.arrivalAtSpot ?? plan.window.start;
-    const body = icsEvent({ uid: `${loc.id}-${date}-${target}@lumen`, start, end: plan.window.end ?? plan.window.start, title: `${TARGETS[target]} · ${loc.name}`,
+    const body = icsEvent({ uid: `${loc.id}-${date}-${target}@varoseye`, start, end: plan.window.end ?? plan.window.start, title: `${TARGETS[target]} · ${loc.name}`,
       description: `Arrive at parking ${t(plan.arrivalAtParking)}, at spot ${t(plan.arrivalAtSpot)}. Window ${t(plan.window.start)}–${t(plan.window.end)}. ${location.origin}${withBase(locHref(loc.slug))}`,
       lat: loc.lat, lng: loc.lng, location: loc.name });
     const a = document.createElement('a');

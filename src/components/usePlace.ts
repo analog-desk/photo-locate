@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 export interface Place { lat: number; lng: number; label: string; source: 'gps' | 'search' | 'pin' | 'link' }
 
-const KEY = 'lumen.place';
+const KEY = 'varoseye.place';
 
 /** Shared "where am I looking" state. GPS is only requested on an explicit user action. */
 export function usePlace(initial?: Place | null) {

@@ -11,7 +11,7 @@ export function communityPhotoRef(p: any): PhotoRef {
       ? `${root}/storage/v1/render/image/public/photos/${p.storage_path}?width=640&quality=75`
       : `${root}/storage/v1/object/public/photos/${p.storage_path}`,
     width: p.width, height: p.height, title: p.title,
-    author: p.display_name ?? p.username ?? 'Lumen member', authorUrl: p.username ? withBase(userHref(p.username)) : undefined,
+    author: p.display_name ?? p.username ?? 'Varo’s Eye member', authorUrl: p.username ? withBase(userHref(p.username)) : undefined,
     license: p.license === 'all-rights-reserved' ? 'All rights reserved' : String(p.license).toUpperCase().replace(/-/g, ' '),
     sourceUrl: withBase(photoHref(p.id)), provider: 'community',
     takenAt: p.taken_at, lat: p.lat, lng: p.lng, lightPhase: p.light_phase, season: p.season,

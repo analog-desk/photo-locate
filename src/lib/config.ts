@@ -20,7 +20,7 @@ export function serverConfig() {
   const env = isBrowser() ? ({} as Record<string, string | undefined>) : process.env;
   return {
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY ?? '',
-    contact: env.DATA_CONTACT ?? 'lumen-photo-atlas (self-hosted)',
+    contact: env.DATA_CONTACT ?? 'varos-eye (self-hosted)',
     windyKey: env.WINDY_WEBCAMS_API_KEY ?? '',
     flickrKey: env.FLICKR_API_KEY ?? '',
     orsKey: env.OPENROUTESERVICE_API_KEY ?? '',

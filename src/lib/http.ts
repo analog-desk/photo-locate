@@ -48,8 +48,8 @@ export interface FetchOpts extends RequestInit {
 }
 
 function userAgent() {
-  const contact = (typeof process !== 'undefined' && process.env.DATA_CONTACT) || 'lumen-photo-atlas (self-hosted)';
-  return `LumenPhotoAtlas/0.1 (${contact})`;
+  const contact = (typeof process !== 'undefined' && process.env.DATA_CONTACT) || 'varos-eye (self-hosted)';
+  return `VarosEye/0.1 (${contact})`;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

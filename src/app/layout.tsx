@@ -8,11 +8,11 @@ const display = Fraunces({ subsets: ['latin'], variable: '--font-display', axes:
 const sans = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: { default: 'Lumen — Photography Location Atlas', template: '%s · Lumen' },
+  title: { default: 'Varo’s Eye — Photography Location Atlas', template: '%s · Varo’s Eye' },
   description: 'Discover the world’s best photography locations, plan around golden & blue hour, weather, sun and moon — with parking, access and viewpoints.',
   manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/manifest.webmanifest`,
   icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon.svg` },
-  applicationName: 'Lumen',
+  applicationName: 'Varo’s Eye',
 };
 
 export const viewport: Viewport = { themeColor: '#07080a', width: 'device-width', initialScale: 1 };

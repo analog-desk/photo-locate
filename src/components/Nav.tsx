@@ -25,8 +25,8 @@ export function Nav() {
       <header className="sticky top-0 z-[1000] border-b border-white/5 bg-ink-950/80 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
           <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-gold-400 to-dusk-500 text-[13px] font-bold text-ink-950">L</span>
-            <span className="h-display text-lg">Lumen</span>
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-gold-400 to-dusk-500 text-[13px] font-bold text-ink-950">V</span>
+            <span className="h-display text-lg">Varo’s Eye</span>
           </Link>
           <nav className="hidden flex-1 items-center gap-1 overflow-x-auto lg:flex">
             {NAV.map((n) => (

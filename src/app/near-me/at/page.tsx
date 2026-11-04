@@ -9,7 +9,7 @@ function Forward() {
   useEffect(() => {
     const lat = Number(sp.get('lat')), lng = Number(sp.get('lng'));
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      try { localStorage.setItem('lumen.place', JSON.stringify({ lat, lng, label: sp.get('label') ?? 'Search result', source: 'link' })); } catch { /* ignore */ }
+      try { localStorage.setItem('varoseye.place', JSON.stringify({ lat, lng, label: sp.get('label') ?? 'Search result', source: 'link' })); } catch { /* ignore */ }
     }
     router.replace('/near-me');
   }, [sp, router]);

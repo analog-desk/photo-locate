@@ -107,7 +107,7 @@ export async function commonsFiles(fileNames: string[]): Promise<PhotoRef[]> {
 /** HEAD-check that an image URL is still reachable (broken image detection). */
 export async function imageAlive(url: string): Promise<boolean> {
   try {
-    const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'LumenPhotoAtlas/0.1 link-check' } });
+    const res = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': 'VarosEye/0.1 link-check' } });
     return res.ok && (res.headers.get('content-type') ?? '').startsWith('image/');
   } catch {
     return false;

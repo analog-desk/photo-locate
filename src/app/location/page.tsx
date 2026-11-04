@@ -11,7 +11,7 @@ function Location() {
   const id = useSearchParams().get('id') ?? '';
   const { data, error, loading } = useAsync(() => (id ? getDetail(id) : Promise.resolve(null)), [id]);
   const l = data?.data ?? null;
-  useEffect(() => { if (l) document.title = `${l.name} · Lumen`; }, [l]);
+  useEffect(() => { if (l) document.title = `${l.name} · Varo’s Eye`; }, [l]);
   if (loading) return <div className="flex items-center justify-center gap-2 py-32 text-sm text-zinc-400"><Loader2 className="animate-spin" size={16} />Gathering location data, photos, parking and conditions…</div>;
   if (error) return (
     <div className="mx-auto max-w-xl px-4 py-24 text-center">
